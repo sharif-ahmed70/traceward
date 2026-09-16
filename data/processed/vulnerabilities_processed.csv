@@ -1,0 +1,17 @@
+vuln_id,system_id,attack_complexity,privileges_required,user_interaction,confidentiality_impact,integrity_impact,availability_impact,exploit_probability,risk_label
+V001,WEB01,0,0,0,2,2,2,0.85,Critical
+V002,WEB01,0,0,1,1,1,0,0.65,Medium
+V003,WEB01,1,1,0,1,0,0,0.3,Low
+V004,VPN01,0,0,0,2,2,2,0.9,Critical
+V005,VPN01,0,1,0,2,0,0,0.6,Medium
+V006,EMP01,0,0,1,2,2,2,0.75,High
+V007,EMP01,1,1,0,1,1,0,0.35,Low
+V008,AUTH01,0,0,0,2,2,2,0.95,Critical
+V009,AUTH01,0,1,0,2,2,0,0.7,High
+V010,APP01,0,1,0,2,2,1,0.8,High
+V011,APP01,1,1,0,1,0,2,0.4,Medium
+V012,APP01,1,2,0,0,0,1,0.2,Low
+V013,DB01,0,1,0,2,2,2,0.85,Critical
+V014,DB01,1,1,0,2,0,0,0.5,Medium
+V015,BACKUP01,0,2,0,2,2,2,0.7,High
+V016,BACKUP01,1,2,0,1,0,0,0.25,Low

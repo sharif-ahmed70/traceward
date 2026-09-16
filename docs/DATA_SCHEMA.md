@@ -95,3 +95,44 @@ along with the encoded numerical features. `description` does not need to be inc
 ### 6. Target Leakage Prevention Note
 
 > **Note**: Keeping the target label separate from the input features prevents data leakage and makes the KNN and K-Means modules consistent.
+
+---
+
+## Initial Encoding Rules
+
+Categorical vulnerability attributes are mapped to ordinal integer representations during preprocessing according to these exact rules:
+
+- **`attack_complexity`**:
+  - `Low` -> `0`
+  - `High` -> `1`
+
+- **`privileges_required`**:
+  - `None` -> `0`
+  - `Low` -> `1`
+  - `High` -> `2`
+
+- **`user_interaction`**:
+  - `None` -> `0`
+  - `Required` -> `1`
+
+- **`confidentiality_impact`**:
+  - `None` -> `0`
+  - `Low` -> `1`
+  - `High` -> `2`
+
+- **`integrity_impact`**:
+  - `None` -> `0`
+  - `Low` -> `1`
+  - `High` -> `2`
+
+- **`availability_impact`**:
+  - `None` -> `0`
+  - `Low` -> `1`
+  - `High` -> `2`
+
+- **`exploit_probability`**:
+  - Keep original numeric value between `0.0` and `1.0` (inclusive).
+
+> **Note on Feature Scaling**: The preprocessing stage performs validation and categorical encoding only. Feature scaling is handled later inside the K-Means and KNN workflows. This avoids unnecessary coupling and prevents data leakage in the supervised KNN workflow.
+
+> **Note on Future Compatibility**: The exploit_probability field can later be populated from a real-world exploit probability source such as EPSS without changing the current schema.
