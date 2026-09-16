@@ -15,8 +15,9 @@ This document specifies the responsibilities, inputs, and outputs for every modu
 - **Expected Output**:
   - `data/processed/vulnerabilities_processed.csv`
 - **Requirements**:
-  - Encoded numerical features for model consumption.
+  - Encoded numerical features for model consumption (using the 7 security features defined in `docs/DATA_SCHEMA.md`).
   - Must preserve key identifier and label columns: `vuln_id`, `system_id`, and `risk_label`.
+  - `description` does not need to be in the ML feature matrix.
 
 ---
 
@@ -25,14 +26,14 @@ This document specifies the responsibilities, inputs, and outputs for every modu
 - **File**: `src/kmeans_clustering.py`
 - **Responsibility**: Perform unsupervised clustering on processed vulnerability vectors to uncover natural groupings and patterns across vulnerabilities.
 - **Input**:
-  - `data/processed/vulnerabilities_processed.csv`
+  - `data/processed/vulnerabilities_processed.csv` (uses **only** the 7 encoded security features; must **NOT** use `risk_label`, `vuln_id`, `system_id`, or `description` to create clusters).
 - **Expected Output**:
   - `artifacts/kmeans/cluster_assignments.csv`
 - **Required Columns**:
   - `vuln_id`
   - `system_id`
   - `cluster_id` (integer cluster index)
-- **Important Note**: K-Means clusters represent structural patterns, **not** severity ratings. Clusters do not automatically map to `Low`, `Medium`, `High`, or `Critical`; their security meaning is evaluated during analysis.
+- **Important Note**: K-Means clusters represent structural patterns, **not** severity ratings. Clusters do not automatically map to `Low`, `Medium`, `High`, or `Critical`; their security meaning is evaluated during analysis. `risk_label` may only be used post-hoc to interpret clusters.
 
 ---
 
@@ -42,6 +43,8 @@ This document specifies the responsibilities, inputs, and outputs for every modu
 - **Responsibility**: Train a K-Nearest Neighbors classifier to predict categorical risk levels for vulnerabilities based on their feature similarities to labeled historical cases.
 - **Input**:
   - `data/processed/vulnerabilities_processed.csv`
+  - **Features**: The same 7 encoded security features (excludes `vuln_id`, `system_id`, `description`).
+  - **Target**: `risk_label` (Allowed values: `Low`, `Medium`, `High`, `Critical`).
 - **Expected Output**:
   - `artifacts/knn/predictions.csv`
 - **Required Columns**:
@@ -154,3 +157,4 @@ To prevent merge conflicts and maintain clear responsibility, each primary proje
 - **Code Boundaries**: Members should avoid editing another member's primary files without prior team alignment.
 - **Shared Contracts**: Any modification to input/output files or schemas must first be proposed, reviewed, and approved in `docs/DATA_SCHEMA.md` and `docs/MODULE_CONTRACTS.md`.
 - **Branching Workflow**: All development occurs on feature branches branched from `dev`, followed by Pull Requests targeting `dev`.
+

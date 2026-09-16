@@ -38,3 +38,60 @@ This document serves as the single source of truth for the vulnerability dataset
 5. **System Reference**: Every `system_id` must correspond to an active system defined in `data/network/network.json`.
 6. **Encoding**: Files must be stored with UTF-8 character encoding without BOM.
 7. **Valid Category 'None'**: Note that `'None'` is a valid domain value for privileges and impacts (meaning no impact or no privileges). When reading with Pandas, use `pd.read_csv(filepath, keep_default_na=False)` so that `'None'` is retained as a category string rather than parsed as `NaN`.
+
+---
+
+## Machine Learning Feature Rules
+
+### 1. Identifier and Display Fields (Not Model Features)
+
+These columns must **NOT** be used as machine-learning input features:
+- `vuln_id`
+- `system_id`
+- `description`
+
+*Reason*: They are identifiers or human-readable descriptions, not numerical security characteristics. However, `vuln_id` and `system_id` must still be preserved in processed datasets because subsequent modules (graph builder, attack path search, patch scheduler) need them for mapping.
+
+### 2. Shared ML Feature Columns
+
+The initial K-Means and KNN models will use these **seven security features**:
+1. `attack_complexity`
+2. `privileges_required`
+3. `user_interaction`
+4. `confidentiality_impact`
+5. `integrity_impact`
+6. `availability_impact`
+7. `exploit_probability`
+
+Categorical fields will later be encoded into numeric values by preprocessing. (Encoding logic will be implemented in `src/preprocessing.py`).
+
+### 3. K-Means Rule (Unsupervised Clustering)
+
+- K-Means is unsupervised.
+- It must use **only** the seven security feature columns listed above.
+- K-Means must **NOT** use:
+  - `risk_label`
+  - `vuln_id`
+  - `system_id`
+  - `description`
+- `risk_label` may only be used later to help humans compare or interpret cluster characteristics; it must never be used to create the clusters.
+
+### 4. KNN Rule (Supervised Classification)
+
+- KNN is supervised.
+- **Input features**: The exact same seven security feature columns.
+- **Target**: `risk_label` (Allowed values: `Low`, `Medium`, `High`, `Critical`).
+- Do **NOT** use `vuln_id`, `system_id`, or `description` as KNN features.
+
+### 5. Processed Data Rule
+
+The future processed CSV (`data/processed/vulnerabilities_processed.csv`) should preserve:
+- `vuln_id`
+- `system_id`
+- `risk_label`
+
+along with the encoded numerical features. `description` does not need to be included in the ML feature matrix, but remains available in the raw dataset for display and explainability.
+
+### 6. Target Leakage Prevention Note
+
+> **Note**: Keeping the target label separate from the input features prevents data leakage and makes the KNN and K-Means modules consistent.
