@@ -136,3 +136,24 @@ Categorical vulnerability attributes are mapped to ordinal integer representatio
 > **Note on Feature Scaling**: The preprocessing stage performs validation and categorical encoding only. Feature scaling is handled later inside the K-Means and KNN workflows. This avoids unnecessary coupling and prevents data leakage in the supervised KNN workflow.
 
 > **Note on Future Compatibility**: The exploit_probability field can later be populated from a real-world exploit probability source such as EPSS without changing the current schema.
+
+---
+
+## Training Dataset
+
+The current TraceWard training dataset has the following characteristics:
+
+- **Type**: Reproducible synthetic vulnerability dataset
+- **Total Records**: 1,200
+- **Class Breakdown**:
+  - `Low`: 300
+  - `Medium`: 300
+  - `High`: 300
+  - `Critical`: 300
+- **Random Seed**: 42
+
+TraceWard currently uses CVSS-inspired synthetic risk logic to create the target risk labels from the seven agreed security characteristics.
+
+The internal hidden risk score is used only while generating labels. It is **NOT** saved in `vulnerabilities.csv` and is **NOT** used as a machine-learning input feature. This prevents direct target leakage.
+
+Future versions may replace or supplement this synthetic dataset with real NVD/CVE and EPSS data while keeping the same TraceWard data schema.

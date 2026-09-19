@@ -27,10 +27,11 @@ class TestPreprocessing(unittest.TestCase):
         self.assertIsInstance(df, pd.DataFrame)
         self.assertFalse(df.empty)
 
-    def test_2_processed_row_count_remains_16(self):
-        """Confirm processed output contains exactly 16 vulnerability records."""
+    def test_2_processed_row_count_matches_raw(self):
+        """Confirm processed output row count matches raw dataset row count."""
+        raw_df = load_raw_data(self.raw_path)
         processed = preprocess_vulnerabilities(self.raw_path, self.processed_path)
-        self.assertEqual(len(processed), 16)
+        self.assertEqual(len(processed), len(raw_df))
 
     def test_3_output_columns_are_exactly_correct(self):
         """Confirm processed columns match the agreed contract in exact order."""
