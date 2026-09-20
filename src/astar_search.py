@@ -1,4 +1,3 @@
-"""A* search algorithm to find the most concerning attack paths in the network graph."""
 """A* Search module for TraceWard defensive attack path analysis.
 
 Finds the critical vulnerability traversal path across the enterprise network

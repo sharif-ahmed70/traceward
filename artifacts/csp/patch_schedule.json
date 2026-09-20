@@ -1,0 +1,46 @@
+[
+  {
+    "vuln_id": "VULN-001",
+    "system_id": "WEB01",
+    "priority": "Critical",
+    "team": "Web Team",
+    "time_slot": "Mon 09:00",
+    "depends_on": []
+  },
+  {
+    "vuln_id": "VULN-002",
+    "system_id": "DB01",
+    "priority": "High",
+    "team": "Database Team",
+    "time_slot": "Mon 09:00",
+    "depends_on": []
+  },
+  {
+    "vuln_id": "VULN-005",
+    "system_id": "VPN01",
+    "priority": "Medium",
+    "team": "Network Team",
+    "time_slot": "Mon 09:00",
+    "depends_on": []
+  },
+  {
+    "vuln_id": "VULN-003",
+    "system_id": "APP01",
+    "priority": "High",
+    "team": "Application Team",
+    "time_slot": "Mon 14:00",
+    "depends_on": [
+      "VULN-001"
+    ]
+  },
+  {
+    "vuln_id": "VULN-004",
+    "system_id": "BACKUP01",
+    "priority": "Medium",
+    "team": "Database Team",
+    "time_slot": "Mon 14:00",
+    "depends_on": [
+      "VULN-002"
+    ]
+  }
+]

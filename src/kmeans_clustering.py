@@ -1,4 +1,3 @@
-"""K-Means clustering to group similar vulnerability patterns."""
 """K-Means clustering module for TraceWard vulnerability structure analysis.
 
 Groups vulnerabilities based on 7 encoded security characteristics.

@@ -1,4 +1,4 @@
-"""Streamlit interactive dashboard for TraceWard.
+"""Streamlit dashboard for TraceWard.
 
 Displays vulnerability risk analysis, structural clusters, defensive attack path,
 and smart CSP remediation schedule.

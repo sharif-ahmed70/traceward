@@ -1,4 +1,3 @@
-"""Build network graphs that represent relationships between vulnerabilities and assets."""
 """Graph Builder module for TraceWard network topology and risk overlay.
 
 Parses data/network/network.json and overlays system-level risk metrics

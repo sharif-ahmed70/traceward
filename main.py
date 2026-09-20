@@ -96,9 +96,6 @@ def get_foundation_status(
     }
 
 
-def main():
-    """Main entry point for TraceWard."""
-    print("TraceWard")
 def run_pipeline():
     """Execute the full end-to-end TraceWard pipeline demonstration."""
     print("=" * 70)
@@ -117,11 +114,6 @@ def run_pipeline():
     print(f"      Network edges: {status['network_edges']}")
     print()
 
-    print("Foundation Status: READY")
-    print(f"Raw vulnerabilities: {status['raw_records']}")
-    print(f"Processed vulnerabilities: {status['processed_records']}")
-    print(f"Network nodes: {status['network_nodes']}")
-    print(f"Network edges: {status['network_edges']}")
     # Step 2: Preprocessing check
     print("[2/8] Preprocessing verification...")
     if not PROCESSED_DATA_PATH.exists():
@@ -182,6 +174,12 @@ def run_pipeline():
     print("      Generated Feasible Patch Schedule:")
     for task in csp_result["schedule"]:
         print(f"        - {task['time_slot']}: {task['team']} -> {task['vuln_id']} ({task['priority']} on {task['system_id']})")
+
+    csp_out = Path("artifacts/csp/patch_schedule.json")
+    csp_out.parent.mkdir(parents=True, exist_ok=True)
+    with open(csp_out, "w", encoding="utf-8") as f:
+        json.dump(csp_result["schedule"], f, indent=2)
+    print("      Saved: artifacts/csp/patch_schedule.json")
     print()
 
     # Explainability demo
