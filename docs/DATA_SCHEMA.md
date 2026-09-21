@@ -1,0 +1,159 @@
+# TraceWard Data Schema
+
+This document serves as the single source of truth for the vulnerability dataset used across the TraceWard project.
+
+> **Note on Initial Dataset**: The initial sample dataset (`data/raw/vulnerabilities.csv`) is provided strictly for development, pipeline validation, and integration testing across team modules. It is **NOT** the final training dataset.
+
+---
+
+## Raw Vulnerability Dataset
+
+- **File Path**: `data/raw/vulnerabilities.csv`
+- **File Format**: Standard Comma-Separated Values (CSV), encoded in UTF-8.
+
+### Column Specifications
+
+| # | Column Name | Data Type | Allowed Values / Range | Description | Example |
+|---|---|---|---|---|---|
+| 1 | `vuln_id` | String | Unique string identifier | Unique identifier for the vulnerability record. | `V001` |
+| 2 | `system_id` | String | Must match a valid node ID in `data/network/network.json` | The target system hosting or affected by the vulnerability. | `WEB01` |
+| 3 | `attack_complexity` | Categorical | `Low`, `High` | The level of effort or conditions required to exploit the vulnerability. | `Low` |
+| 4 | `privileges_required` | Categorical | `None`, `Low`, `High` | Level of privileges the attacker must possess prior to exploiting. | `None` |
+| 5 | `user_interaction` | Categorical | `None`, `Required` | Whether a legitimate user must participate for an exploit to succeed. | `None` |
+| 6 | `confidentiality_impact`| Categorical | `None`, `Low`, `High` | Impact on data privacy and confidentiality if exploited. | `High` |
+| 7 | `integrity_impact` | Categorical | `None`, `Low`, `High` | Impact on data accuracy and modification if exploited. | `High` |
+| 8 | `availability_impact` | Categorical | `None`, `Low`, `High` | Impact on service availability and uptime if exploited. | `High` |
+| 9 | `exploit_probability` | Float | `0.0` to `1.0` (inclusive) | Estimated probability of exploitation. Higher value means more likely. | `0.85` |
+| 10 | `risk_label` | Categorical | `Low`, `Medium`, `High`, `Critical` | Ground-truth risk classification label for evaluation and supervised learning. | `Critical` |
+| 11 | `description` | String | Free-text string | Short, human-readable summary of the vulnerability. | `Public web service allows remote code execution` |
+
+---
+
+## Data Integrity Rules
+
+1. **Naming Conventions**: Column headers must always remain strictly lowercase with underscores (`snake_case`).
+2. **Standard Risk Labels**: `risk_label` capitalization must strictly use: `Low`, `Medium`, `High`, `Critical`.
+3. **No Missing Value Placeholders**: Missing values must not be represented using arbitrary text such as `"-"`, `"unknown"`, or `"N/A"`. All values in the raw dataset must be present and valid.
+4. **Uniqueness**: Each `vuln_id` must be unique within the dataset.
+5. **System Reference**: Every `system_id` must correspond to an active system defined in `data/network/network.json`.
+6. **Encoding**: Files must be stored with UTF-8 character encoding without BOM.
+7. **Valid Category 'None'**: Note that `'None'` is a valid domain value for privileges and impacts (meaning no impact or no privileges). When reading with Pandas, use `pd.read_csv(filepath, keep_default_na=False)` so that `'None'` is retained as a category string rather than parsed as `NaN`.
+
+---
+
+## Machine Learning Feature Rules
+
+### 1. Identifier and Display Fields (Not Model Features)
+
+These columns must **NOT** be used as machine-learning input features:
+- `vuln_id`
+- `system_id`
+- `description`
+
+*Reason*: They are identifiers or human-readable descriptions, not numerical security characteristics. However, `vuln_id` and `system_id` must still be preserved in processed datasets because subsequent modules (graph builder, attack path search, patch scheduler) need them for mapping.
+
+### 2. Shared ML Feature Columns
+
+The initial K-Means and KNN models will use these **seven security features**:
+1. `attack_complexity`
+2. `privileges_required`
+3. `user_interaction`
+4. `confidentiality_impact`
+5. `integrity_impact`
+6. `availability_impact`
+7. `exploit_probability`
+
+Categorical fields will later be encoded into numeric values by preprocessing. (Encoding logic will be implemented in `src/preprocessing.py`).
+
+### 3. K-Means Rule (Unsupervised Clustering)
+
+- K-Means is unsupervised.
+- It must use **only** the seven security feature columns listed above.
+- K-Means must **NOT** use:
+  - `risk_label`
+  - `vuln_id`
+  - `system_id`
+  - `description`
+- `risk_label` may only be used later to help humans compare or interpret cluster characteristics; it must never be used to create the clusters.
+
+### 4. KNN Rule (Supervised Classification)
+
+- KNN is supervised.
+- **Input features**: The exact same seven security feature columns.
+- **Target**: `risk_label` (Allowed values: `Low`, `Medium`, `High`, `Critical`).
+- Do **NOT** use `vuln_id`, `system_id`, or `description` as KNN features.
+
+### 5. Processed Data Rule
+
+The future processed CSV (`data/processed/vulnerabilities_processed.csv`) should preserve:
+- `vuln_id`
+- `system_id`
+- `risk_label`
+
+along with the encoded numerical features. `description` does not need to be included in the ML feature matrix, but remains available in the raw dataset for display and explainability.
+
+### 6. Target Leakage Prevention Note
+
+> **Note**: Keeping the target label separate from the input features prevents data leakage and makes the KNN and K-Means modules consistent.
+
+---
+
+## Initial Encoding Rules
+
+Categorical vulnerability attributes are mapped to ordinal integer representations during preprocessing according to these exact rules:
+
+- **`attack_complexity`**:
+  - `Low` -> `0`
+  - `High` -> `1`
+
+- **`privileges_required`**:
+  - `None` -> `0`
+  - `Low` -> `1`
+  - `High` -> `2`
+
+- **`user_interaction`**:
+  - `None` -> `0`
+  - `Required` -> `1`
+
+- **`confidentiality_impact`**:
+  - `None` -> `0`
+  - `Low` -> `1`
+  - `High` -> `2`
+
+- **`integrity_impact`**:
+  - `None` -> `0`
+  - `Low` -> `1`
+  - `High` -> `2`
+
+- **`availability_impact`**:
+  - `None` -> `0`
+  - `Low` -> `1`
+  - `High` -> `2`
+
+- **`exploit_probability`**:
+  - Keep original numeric value between `0.0` and `1.0` (inclusive).
+
+> **Note on Feature Scaling**: The preprocessing stage performs validation and categorical encoding only. Feature scaling is handled later inside the K-Means and KNN workflows. This avoids unnecessary coupling and prevents data leakage in the supervised KNN workflow.
+
+> **Note on Future Compatibility**: The exploit_probability field can later be populated from a real-world exploit probability source such as EPSS without changing the current schema.
+
+---
+
+## Training Dataset
+
+The current TraceWard training dataset has the following characteristics:
+
+- **Type**: Reproducible synthetic vulnerability dataset
+- **Total Records**: 1,200
+- **Class Breakdown**:
+  - `Low`: 300
+  - `Medium`: 300
+  - `High`: 300
+  - `Critical`: 300
+- **Random Seed**: 42
+
+TraceWard currently uses CVSS-inspired synthetic risk logic to create the target risk labels from the seven agreed security characteristics.
+
+The internal hidden risk score is used only while generating labels. It is **NOT** saved in `vulnerabilities.csv` and is **NOT** used as a machine-learning input feature. This prevents direct target leakage.
+
+Future versions may replace or supplement this synthetic dataset with real NVD/CVE and EPSS data while keeping the same TraceWard data schema.

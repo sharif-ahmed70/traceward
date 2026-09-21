@@ -1,0 +1,41 @@
+{
+  "sections": {
+    "risk": {
+      "type": "risk",
+      "vuln_id": "VULN-001",
+      "system_id": "WEB01",
+      "decision": "Critical",
+      "summary": "Predicted risk for VULN-001 on WEB01: Critical.",
+      "evidence": [
+        "High severity mock input",
+        "Web-facing system"
+      ],
+      "cluster_context": "The vulnerability belongs to cluster 2; cluster membership is descriptive, not a risk label.",
+      "human_readable": "High severity mock input; Web-facing system The vulnerability belongs to cluster 2; cluster membership is descriptive, not a risk label."
+    },
+    "attack_path": {
+      "type": "attack_path",
+      "start": "INTERNET",
+      "goal": "DB01",
+      "path": [
+        "INTERNET",
+        "WEB01",
+        "APP01",
+        "DB01"
+      ],
+      "total_cost": 8.5,
+      "summary": "Risk-aware analysis selected the simulated route INTERNET -> WEB01 -> APP01 -> DB01. Total path cost: 8.5.",
+      "human_readable": "This is a simulated network path for defensive risk analysis; it does not represent an exploitation procedure."
+    },
+    "patch_priority": {
+      "type": "patch_priority",
+      "vuln_id": "VULN-001",
+      "system_id": "WEB01",
+      "priority": "Critical",
+      "reason": "Highest-priority mock remediation item.",
+      "scheduled_slot": "Mon 09:00",
+      "team": "Web Team",
+      "summary": "VULN-001 on WEB01 is marked Critical. Highest-priority mock remediation item. Scheduled for Mon 09:00 with Web Team."
+    }
+  }
+}
