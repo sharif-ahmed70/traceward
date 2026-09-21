@@ -1,0 +1,15 @@
+KNN Evaluation Report
+========================================
+Selected K: 9
+----------------------------------------
+Accuracy:  0.7792
+Precision: 0.7826
+Recall:    0.7792
+F1-Score:  0.7682
+
+Confusion Matrix (rows=true, cols=pred):
+Labels: ['Low', 'Medium', 'High', 'Critical']
+  Low: [58, 2, 0, 0]
+  Medium: [14, 32, 14, 0]
+  High: [0, 4, 40, 16]
+  Critical: [0, 0, 3, 57]
