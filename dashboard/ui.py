@@ -654,3 +654,144 @@ def render_risk_explanation(
         else:
             st.caption("No technical details available.")
 
+
+def render_structured_explanation_card(exp: dict[str, Any]) -> None:
+    """Render a clean, cybersecurity-themed structured explanation card."""
+    risk_level = exp.get("predicted_risk", "Medium")
+    subscores = exp.get("subscores", {})
+    asset_ctx = exp.get("asset_context", {})
+    factors = exp.get("risk_factors", [])
+    action = exp.get("recommended_action", "")
+    contributions = exp.get("feature_contributions", {})
+    vote_share = exp.get("vote_share")
+
+    st.markdown("#### Vulnerability Risk Explanation")
+
+    # 1. Metric row
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.markdown(
+            f"<div style='margin-bottom: 0.5rem;'>"
+            f"<span style='color: #9ca3af; font-size: 0.8rem; text-transform: uppercase;'>Predicted Risk</span>"
+            f"<div style='margin-top: 0.25rem;'>{risk_badge(risk_level, size='medium')}</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+    with c2:
+        exp_score = subscores.get("exploitability_score", 0.0)
+        c2.metric(
+            "Exploitability",
+            f"{exp_score * 100:.0f}%",
+            help="Ease of attacker compromise based on complexity, authentication, and exploit availability.",
+        )
+    with c3:
+        imp_score = subscores.get("impact_score", 0.0)
+        c3.metric(
+            "CIA Impact",
+            f"{imp_score * 100:.0f}%",
+            help="Severity of consequences across Confidentiality, Integrity, and Availability.",
+        )
+    with c4:
+        driver = subscores.get("primary_driver", "N/A")
+        driver_short = "Exploitability" if "Exploitability" in driver else "CIA Impact"
+        c4.metric(
+            "Primary Driver",
+            driver_short,
+            help="The dominant risk dimension driving this classification.",
+        )
+
+    if vote_share is not None:
+        st.caption(f"KNN Neighbor Vote Share: **{vote_share * 100:.1f}%** nearest neighbors agree on {risk_level}.")
+
+    # 2. Asset Context Box
+    crit_label = asset_ctx.get("criticality_label", "Level 3/5")
+    exp_scope = asset_ctx.get("exposure_scope", "Internal Network")
+    st.markdown(
+        f"<div style='background-color: #111827; border: 1px solid #374151; border-radius: 6px; padding: 0.75rem 1rem; margin: 0.75rem 0;'>"
+        f"<span style='font-weight: 600; color: #f3f4f6;'>🛡️ Host Context: {asset_ctx.get('name', exp.get('system_id', 'Host'))}</span> "
+        f"<span style='color: #9ca3af;'>({asset_ctx.get('type', 'Server')})</span> &nbsp;|&nbsp; "
+        f"<span style='color: #f59e0b;'>{crit_label}</span> &nbsp;|&nbsp; "
+        f"<span style='color: #3b82f6;'>{exp_scope}</span>"
+        f"<p style='color: #9ca3af; font-size: 0.85rem; margin: 0.35rem 0 0 0;'>{asset_ctx.get('role_description', '')}</p>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+    # 3. Evidence / Risk Factors
+    if factors:
+        st.markdown("**Key Risk Factors (Attribution Evidence):**")
+        for factor in factors:
+            st.markdown(f"- 🔍 {factor}")
+
+    # 4. Actionable Remediation Guidance
+    if action:
+        st.info(f"**Recommended Action:** {action}")
+
+    # 5. Technical Details Expander
+    if contributions:
+        with st.expander("Feature Contribution Breakdown (CVSS v3.1 Dimensions)"):
+            rows = []
+            for fname, fmeta in contributions.items():
+                rows.append({
+                    "Feature": fname.replace("_", " ").title(),
+                    "Value": fmeta.get("display", str(fmeta.get("value", ""))),
+                    "Normalized Risk": f"{fmeta.get('normalized_risk', 0.0):.2f}",
+                    "Risk Impact": fmeta.get("direction", "Neutral"),
+                    "Qualitative Rationale": fmeta.get("rationale", ""),
+                })
+            st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
+
+def render_remediation_priority_card(exp: dict[str, Any], task_row: dict[str, Any]) -> None:
+    """Render an explainable card explaining why a remediation task received its priority and slot."""
+    vuln_id = task_row.get("vuln_id", "")
+    system_id = task_row.get("system_id", "")
+    priority = task_row.get("priority", "High")
+    team = task_row.get("team", "")
+    time_slot = task_row.get("time_slot", "")
+    deps = task_row.get("depends_on", [])
+
+    st.markdown("#### Remediation Priority Rationale")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown(
+            f"<div style='margin-bottom: 0.5rem;'>"
+            f"<span style='color: #9ca3af; font-size: 0.8rem; text-transform: uppercase;'>Task Priority</span>"
+            f"<div style='margin-top: 0.25rem;'>{risk_badge(priority, size='medium')}</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+    with c2:
+        c2.metric("Scheduled Slot", time_slot)
+    with c3:
+        c3.metric("Assigned Team", team)
+
+    dep_text = (
+        f"Prerequisite dependency on task(s): `{', '.join(deps)}`."
+        if deps
+        else "Zero prerequisite dependencies (can execute immediately in opening slot)."
+    )
+
+    path_systems = ["WEB01", "APP01", "DB01"]
+    if system_id in path_systems:
+        path_context = (
+            f"**Critical Breach Corridor:** Host `{system_id}` is directly located on the primary adversary attack path "
+            f"(`INTERNET -> WEB01 -> APP01 -> DB01`). Mitigating this flaw directly increases the attacker's traversal friction."
+        )
+    else:
+        path_context = (
+            f"**Defense-in-Depth:** Host `{system_id}` is an adjacent enterprise asset. "
+            f"Mitigating this flaw protects against lateral perimeter pivoting."
+        )
+
+    st.markdown(
+        f"<div style='background-color: #111827; border: 1px solid #374151; border-radius: 6px; padding: 0.75rem 1rem; margin: 0.75rem 0;'>"
+        f"<p style='margin: 0 0 0.5rem 0; color: #f3f4f6;'><strong>Justification for {vuln_id} on {system_id}:</strong></p>"
+        f"<p style='color: #9ca3af; font-size: 0.9rem; margin: 0 0 0.5rem 0;'>• {path_context}</p>"
+        f"<p style='color: #9ca3af; font-size: 0.9rem; margin: 0;'>• <strong>Temporal Constraint:</strong> {dep_text}</p>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+
+

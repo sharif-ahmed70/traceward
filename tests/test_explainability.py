@@ -1,0 +1,173 @@
+"""Unit tests for TraceWard Structured Explainability Engine."""
+
+from __future__ import annotations
+
+import unittest
+from src.explainability import (
+    compute_feature_contributions,
+    explain_attack_path,
+    explain_patch_priority,
+    explain_risk,
+    explain_vulnerability,
+    generate_recommended_action,
+    generate_risk_factors,
+    get_system_context,
+)
+
+
+class TestExplainabilityEngine(unittest.TestCase):
+    """Test suite verifying explainability schemas, attributions, and compatibility."""
+
+    def test_get_system_context_crown_jewel(self):
+        ctx = get_system_context("DB01")
+        self.assertEqual(ctx["system_id"], "DB01")
+        self.assertEqual(ctx["name"], "Database Server")
+        self.assertEqual(ctx["type"], "Database")
+        self.assertEqual(ctx["criticality"], 5)
+        self.assertIn("Crown Jewel", ctx["criticality_label"])
+        self.assertFalse(ctx["internet_exposed"])
+        self.assertIn("Internal", ctx["exposure_scope"])
+
+    def test_get_system_context_perimeter(self):
+        ctx = get_system_context("WEB01")
+        self.assertEqual(ctx["system_id"], "WEB01")
+        self.assertEqual(ctx["criticality"], 4)
+        self.assertTrue(ctx["internet_exposed"])
+        self.assertIn("Perimeter-Facing", ctx["exposure_scope"])
+
+    def test_get_system_context_unknown_fallback(self):
+        ctx = get_system_context("UNKNOWN_SYS_99")
+        self.assertEqual(ctx["system_id"], "UNKNOWN_SYS_99")
+        self.assertEqual(ctx["criticality"], 3)
+        self.assertFalse(ctx["internet_exposed"])
+
+    def test_compute_feature_contributions_bounds(self):
+        features = {
+            "attack_complexity": 0,
+            "privileges_required": 0,
+            "user_interaction": 0,
+            "confidentiality_impact": 2,
+            "integrity_impact": 2,
+            "availability_impact": 2,
+            "exploit_probability": 0.95,
+        }
+        res = compute_feature_contributions(features)
+        subscores = res["subscores"]
+        contributions = res["contributions"]
+
+        self.assertIn("exploitability_score", subscores)
+        self.assertIn("impact_score", subscores)
+        self.assertGreaterEqual(subscores["exploitability_score"], 0.0)
+        self.assertLessEqual(subscores["exploitability_score"], 1.0)
+        self.assertGreaterEqual(subscores["impact_score"], 0.0)
+        self.assertLessEqual(subscores["impact_score"], 1.0)
+
+        # Max impact should equal 1.0
+        self.assertEqual(subscores["impact_score"], 1.0)
+
+        # Check all 7 feature keys present in contributions
+        expected_keys = {
+            "attack_complexity",
+            "privileges_required",
+            "user_interaction",
+            "confidentiality_impact",
+            "integrity_impact",
+            "availability_impact",
+            "exploit_probability",
+        }
+        self.assertEqual(set(contributions.keys()), expected_keys)
+        for k, v in contributions.items():
+            self.assertIn("direction", v)
+            self.assertIn("rationale", v)
+            self.assertIn("normalized_risk", v)
+
+    def test_generate_risk_factors(self):
+        features = {
+            "attack_complexity": 0,
+            "privileges_required": 0,
+            "user_interaction": 0,
+            "confidentiality_impact": 2,
+            "integrity_impact": 1,
+            "availability_impact": 2,
+            "exploit_probability": 0.85,
+        }
+        asset_ctx = get_system_context("DB01")
+        factors = generate_risk_factors(features, asset_ctx, "Critical")
+
+        factor_text = " ".join(factors)
+        self.assertIn("Unauthenticated Access", factor_text)
+        self.assertIn("Low Attack Complexity", factor_text)
+        self.assertIn("Autonomous Exploitation", factor_text)
+        self.assertIn("High Exploit Probability", factor_text)
+        self.assertIn("High Confidentiality Loss", factor_text)
+        self.assertIn("Crown-Jewel Asset", factor_text)
+
+    def test_generate_recommended_action_critical_crown_jewel(self):
+        asset_ctx = get_system_context("DB01")
+        subscores = {"primary_driver": "Impact (CIA Triad)"}
+        action = generate_recommended_action("Critical", asset_ctx, subscores)
+        self.assertIn("Emergency Remediation", action)
+        self.assertIn("24h", action)
+
+    def test_generate_recommended_action_perimeter(self):
+        asset_ctx = get_system_context("WEB01")
+        subscores = {"primary_driver": "Exploitability (Attack Ease)"}
+        action = generate_recommended_action("High", asset_ctx, subscores)
+        self.assertIn("Perimeter Defense", action)
+
+    def test_explain_vulnerability_dataset_lookup(self):
+        # V1136 is a real record in vulnerabilities_processed.csv on DB01
+        res = explain_vulnerability("V1136", "DB01", "Critical", vote_share=1.0)
+
+        # Check required schema fields
+        self.assertEqual(res["vulnerability_id"], "V1136")
+        self.assertEqual(res["system_id"], "DB01")
+        self.assertEqual(res["predicted_risk"], "Critical")
+        self.assertIsInstance(res["risk_factors"], list)
+        self.assertGreater(len(res["risk_factors"]), 0)
+        self.assertIn("feature_contributions", res)
+        self.assertIn("subscores", res)
+        self.assertIn("asset_context", res)
+        self.assertIn("recommended_action", res)
+
+        # Backward compatibility assertions
+        self.assertEqual(res["vuln_id"], "V1136")
+        self.assertEqual(res["decision"], "Critical")
+        self.assertEqual(res["evidence"], res["risk_factors"])
+        self.assertIn("summary", res)
+        self.assertIn("human_readable", res)
+
+    def test_explain_risk_backward_compatibility(self):
+        # Legacy contract verification
+        res = explain_risk(
+            "VULN-001",
+            "WEB01",
+            "Critical",
+            risk_factors=["High severity input feature"],
+            cluster_id=2,
+        )
+        self.assertEqual(res["decision"], "Critical")
+        self.assertEqual(res["vuln_id"], "VULN-001")
+        self.assertEqual(res["system_id"], "WEB01")
+        # Legacy custom factor preserved
+        self.assertIn("High severity input feature", res["evidence"])
+        self.assertIn("cluster 2", res["cluster_context"])
+        # New enriched fields available
+        self.assertIn("asset_context", res)
+        self.assertIn("recommended_action", res)
+        self.assertIn("feature_contributions", res)
+
+    def test_legacy_path_and_patch_contracts(self):
+        path = explain_attack_path("INTERNET", "DB01", ["INTERNET", "WEB01", "DB01"], 5.0)
+        patch = explain_patch_priority("V0036", "WEB01", "Critical", scheduled_slot="Mon 09:00", team="Web Team")
+
+        self.assertEqual(path["path"][-1], "DB01")
+        self.assertEqual(path["total_cost"], 5.0)
+        self.assertEqual(patch["priority"], "Critical")
+        self.assertEqual(patch["scheduled_slot"], "Mon 09:00")
+        self.assertEqual(patch["team"], "Web Team")
+
+
+if __name__ == "__main__":
+    unittest.main()
+

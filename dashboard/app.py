@@ -23,6 +23,7 @@ from src.explainability import (  # noqa: E402
     explain_attack_path,
     explain_patch_priority,
     explain_risk,
+    explain_vulnerability,
 )
 from src.knn_classifier import (  # noqa: E402
     FEATURE_COLUMNS,
@@ -34,6 +35,11 @@ st.set_page_config(page_title="TraceWard", page_icon="🛡️", layout="wide")
 
 try:
     from dashboard.ui import inject_dark_theme
+    from dashboard.ui import (
+        inject_dark_theme,
+        render_remediation_priority_card,
+        render_structured_explanation_card,
+    )
     inject_dark_theme()
 except Exception:
     pass
@@ -139,6 +145,7 @@ def render_risk_prediction(risk_df, clusters_df, is_mock):
         cluster_id = int(cluster_matches.iloc[0]["cluster_id"]) if not cluster_matches.empty else None
 
         explanation = explain_risk(
+        explanation = explain_vulnerability(
             row["vuln_id"],
             row["system_id"],
             row["predicted_risk"],
@@ -149,6 +156,7 @@ def render_risk_prediction(risk_df, clusters_df, is_mock):
         for factor in explanation["evidence"]:
             st.write(f"- {factor}")
         st.caption(explanation["cluster_context"])
+        render_structured_explanation_card(explanation)
 
     st.markdown("---")
     st.subheader("Interactive Model Inference (Predict New Vulnerability)")
@@ -200,6 +208,7 @@ def render_risk_prediction(risk_df, clusters_df, is_mock):
             )
 
             exp = explain_risk(
+            exp = explain_vulnerability(
                 "NEW-VULN-PRED",
                 target_sys,
                 p_class,
@@ -209,12 +218,15 @@ def render_risk_prediction(risk_df, clusters_df, is_mock):
                     f"Exploit Probability: {exp_prob:.2f}",
                     f"Impact: C={ci_choice}, I={ii_choice}, A={ai_choice}",
                 ],
+                features=custom_features,
+                vote_share=p_probs.get(p_class, 1.0),
             )
             st.info(
                 f"**Explanation:** Classification decision is **{p_class}** based on distance in the 7-dimensional "
                 "standardized feature space to nearest training instances. Distance metrics reflect geometric similarity "
                 "under CVSS metric distributions, not single-feature causal relationships."
             )
+            render_structured_explanation_card(exp)
         except Exception as e:
             st.error(f"Inference failed: {e}")
 
@@ -253,15 +265,18 @@ def render_patch_plan(csp_result):
 
     selected = st.selectbox("Explain patch task", schedule["vuln_id"].tolist(), key="patch_task")
     row = schedule.loc[schedule["vuln_id"] == selected].iloc[0]
+    task_dict = row.to_dict()
     explanation = explain_patch_priority(
         row["vuln_id"],
         row["system_id"],
         row["priority"],
         reason="Priority comes from upstream risk rating.",
+        reason="Priority comes from upstream risk rating and attack-path alignment.",
         scheduled_slot=row["time_slot"],
         team=row["team"],
     )
     st.write(explanation["summary"])
+    render_remediation_priority_card(explanation, task_dict)
 
     with st.expander("CSP contract & Infeasibility Handling"):
         st.write("Variables", csp_result["variables"])
