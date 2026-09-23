@@ -1,0 +1,175 @@
+{
+  "status": "feasible",
+  "solver": "Backtracking CSP",
+  "objective": null,
+  "variables": [
+    "VULN-001",
+    "VULN-003",
+    "VULN-002",
+    "VULN-004",
+    "VULN-005"
+  ],
+  "domains": {
+    "VULN-001": [
+      {
+        "team": "Web Team",
+        "time_slot": "Mon 09:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Mon 14:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Tue 09:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Tue 14:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Wed 09:00"
+      }
+    ],
+    "VULN-003": [
+      {
+        "team": "Application Team",
+        "time_slot": "Mon 09:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Mon 14:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Tue 09:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Tue 14:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Wed 09:00"
+      }
+    ],
+    "VULN-002": [
+      {
+        "team": "Database Team",
+        "time_slot": "Mon 09:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Mon 14:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Tue 09:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Tue 14:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Wed 09:00"
+      }
+    ],
+    "VULN-004": [
+      {
+        "team": "Database Team",
+        "time_slot": "Mon 09:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Mon 14:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Tue 09:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Tue 14:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Wed 09:00"
+      }
+    ],
+    "VULN-005": [
+      {
+        "team": "Network Team",
+        "time_slot": "Mon 09:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Mon 14:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Tue 09:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Tue 14:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Wed 09:00"
+      }
+    ]
+  },
+  "constraints": [
+    "Each vulnerability is assigned to its required team.",
+    "A team handles at most one vulnerability in a time slot.",
+    "Dependencies must be scheduled before their dependent vulnerability."
+  ],
+  "schedule": [
+    {
+      "vuln_id": "VULN-001",
+      "system_id": "WEB01",
+      "priority": "Critical",
+      "team": "Web Team",
+      "time_slot": "Mon 09:00",
+      "depends_on": []
+    },
+    {
+      "vuln_id": "VULN-002",
+      "system_id": "DB01",
+      "priority": "High",
+      "team": "Database Team",
+      "time_slot": "Mon 09:00",
+      "depends_on": []
+    },
+    {
+      "vuln_id": "VULN-005",
+      "system_id": "VPN01",
+      "priority": "Medium",
+      "team": "Network Team",
+      "time_slot": "Mon 09:00",
+      "depends_on": []
+    },
+    {
+      "vuln_id": "VULN-003",
+      "system_id": "APP01",
+      "priority": "High",
+      "team": "Application Team",
+      "time_slot": "Mon 14:00",
+      "depends_on": [
+        "VULN-001"
+      ]
+    },
+    {
+      "vuln_id": "VULN-004",
+      "system_id": "BACKUP01",
+      "priority": "Medium",
+      "team": "Database Team",
+      "time_slot": "Mon 14:00",
+      "depends_on": [
+        "VULN-002"
+      ]
+    }
+  ]
+}

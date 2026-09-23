@@ -1,0 +1,11 @@
+{
+  "start": "INTERNET",
+  "goal": "DB01",
+  "path": [
+    "INTERNET",
+    "WEB01",
+    "APP01",
+    "DB01"
+  ],
+  "total_cost": 4.08
+}
