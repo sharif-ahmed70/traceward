@@ -224,6 +224,69 @@ class TestExplainabilityEngine(unittest.TestCase):
         self.assertEqual(single_res["hop_count"], 0)
         self.assertEqual(len(single_res["path_nodes"]), 1)
 
+    def test_explain_patch_priority_corridor_task(self):
+        res = explain_patch_priority(
+            "V0036",
+            "WEB01",
+            "Critical",
+            scheduled_slot="Mon 09:00",
+            team="Web Team",
+            depends_on=[],
+        )
+
+        # Legacy fields
+        self.assertEqual(res["type"], "patch_priority")
+        self.assertEqual(res["vuln_id"], "V0036")
+        self.assertEqual(res["system_id"], "WEB01")
+        self.assertEqual(res["priority"], "Critical")
+        self.assertEqual(res["scheduled_slot"], "Mon 09:00")
+        self.assertEqual(res["team"], "Web Team")
+        self.assertIn("V0036 on WEB01", res["summary"])
+
+        # Structured schema
+        self.assertEqual(res["vulnerability_id"], "V0036")
+        self.assertEqual(res["risk_level"], "Critical")
+        self.assertTrue(res["attack_path_relevance"]["is_on_attack_path"])
+        self.assertIn("Perimeter", res["attack_path_relevance"]["path_role"])
+        self.assertIn("WEB01", res["attack_path_relevance"]["rationale"])
+        self.assertEqual(res["prerequisites"], [])
+        self.assertIn("opening window", res["scheduling_reason"])
+        self.assertIn("recommended_action", res)
+        self.assertIn("subscores", res)
+        self.assertEqual(res["asset_context"]["criticality"], 4)
+
+    def test_explain_patch_priority_dependent_task(self):
+        res = explain_patch_priority(
+            "V0426",
+            "APP01",
+            "Critical",
+            scheduled_slot="Mon 14:00",
+            team="Application Team",
+            depends_on=["V0036"],
+        )
+
+        self.assertEqual(res["vulnerability_id"], "V0426")
+        self.assertTrue(res["attack_path_relevance"]["is_on_attack_path"])
+        self.assertIn("Lateral", res["attack_path_relevance"]["path_role"])
+        self.assertEqual(res["prerequisites"], ["V0036"])
+        self.assertIn("temporal dependency", res["scheduling_reason"])
+        self.assertIn("V0036", res["scheduling_reason"])
+
+    def test_explain_patch_priority_defense_in_depth(self):
+        res = explain_patch_priority(
+            "V0186",
+            "VPN01",
+            "Critical",
+            scheduled_slot="Mon 09:00",
+            team="Network Team",
+            depends_on=[],
+        )
+
+        self.assertEqual(res["vulnerability_id"], "V0186")
+        self.assertFalse(res["attack_path_relevance"]["is_on_attack_path"])
+        self.assertIn("Defense-in-Depth", res["attack_path_relevance"]["path_role"])
+        self.assertIn("adjacent", res["attack_path_relevance"]["rationale"])
+
 
 if __name__ == "__main__":
     unittest.main()

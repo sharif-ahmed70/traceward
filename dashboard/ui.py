@@ -745,56 +745,69 @@ def render_structured_explanation_card(exp: dict[str, Any]) -> None:
 
 
 def render_remediation_priority_card(exp: dict[str, Any], task_row: dict[str, Any]) -> None:
-    """Render an explainable card explaining why a remediation task received its priority and slot."""
-    vuln_id = task_row.get("vuln_id", "")
-    system_id = task_row.get("system_id", "")
-    priority = task_row.get("priority", "High")
-    team = task_row.get("team", "")
-    time_slot = task_row.get("time_slot", "")
-    deps = task_row.get("depends_on", [])
+    """Render an explainable card detailing why a remediation task received its priority and slot."""
+    vuln_id = exp.get("vulnerability_id", task_row.get("vuln_id", ""))
+    system_id = exp.get("system_id", task_row.get("system_id", ""))
+    priority = exp.get("priority", task_row.get("priority", "High"))
+    team = exp.get("team", task_row.get("team", ""))
+    time_slot = exp.get("scheduled_slot", task_row.get("time_slot", ""))
+    deps = exp.get("prerequisites", task_row.get("depends_on", []))
+    ap_rel = exp.get("attack_path_relevance", {})
+    asset_ctx = exp.get("asset_context", {})
 
-    st.markdown("#### Remediation Priority Rationale")
+    st.markdown("#### 🛡️ Remediation Priority & Scheduling Intelligence")
 
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.markdown(
             f"<div style='margin-bottom: 0.5rem;'>"
-            f"<span style='color: #9ca3af; font-size: 0.8rem; text-transform: uppercase;'>Task Priority</span>"
+            f"<span style='color: #9ca3af; font-size: 0.8rem; text-transform: uppercase;'>Remediation Priority</span>"
             f"<div style='margin-top: 0.25rem;'>{risk_badge(priority, size='medium')}</div>"
             f"</div>",
             unsafe_allow_html=True,
         )
     with c2:
-        c2.metric("Scheduled Slot", time_slot)
+        c2.metric("Scheduled Slot", time_slot, help="Operational execution window allocated by CSP solver.")
     with c3:
-        c3.metric("Assigned Team", team)
+        c3.metric("Assigned Team", team, help="Authoritative operational team owning host remediation.")
+    with c4:
+        is_corridor = ap_rel.get("is_on_attack_path", False)
+        status_label = "🔴 Critical Corridor" if is_corridor else "🛡️ Defense-in-Depth"
+        c4.metric("Corridor Alignment", status_label, help=ap_rel.get("path_role", "Defensive posture"))
 
-    dep_text = (
-        f"Prerequisite dependency on task(s): `{', '.join(deps)}`."
-        if deps
-        else "Zero prerequisite dependencies (can execute immediately in opening slot)."
-    )
+    # Host & System Context Banner
+    if asset_ctx:
+        crit_label = asset_ctx.get("criticality_label", "Level 3/5")
+        exp_scope = asset_ctx.get("exposure_scope", "Internal Network")
+        st.markdown(
+            f"<div style='background-color: #111827; border: 1px solid #374151; border-radius: 6px; padding: 0.75rem 1rem; margin: 0.75rem 0;'>"
+            f"<span style='font-weight: 600; color: #f3f4f6;'>🏢 Target System: {asset_ctx.get('name', system_id)} ({system_id})</span> &nbsp;|&nbsp; "
+            f"<span style='color: #f59e0b;'>{crit_label}</span> &nbsp;|&nbsp; "
+            f"<span style='color: #3b82f6;'>{exp_scope}</span>"
+            f"<p style='color: #9ca3af; font-size: 0.85rem; margin: 0.35rem 0 0 0;'>{asset_ctx.get('role_description', '')}</p>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
 
-    path_systems = ["WEB01", "APP01", "DB01"]
-    if system_id in path_systems:
-        path_context = (
-            f"**Critical Breach Corridor:** Host `{system_id}` is directly located on the primary adversary attack path "
-            f"(`INTERNET -> WEB01 -> APP01 -> DB01`). Mitigating this flaw directly increases the attacker's traversal friction."
-        )
-    else:
-        path_context = (
-            f"**Defense-in-Depth:** Host `{system_id}` is an adjacent enterprise asset. "
-            f"Mitigating this flaw protects against lateral perimeter pivoting."
-        )
+    # Structured Justification Breakdown
+    impact_reason = exp.get("impact_reason", "")
+    scheduling_reason = exp.get("scheduling_reason", "")
+    ap_rationale = ap_rel.get("rationale", "")
 
     st.markdown(
-        f"<div style='background-color: #111827; border: 1px solid #374151; border-radius: 6px; padding: 0.75rem 1rem; margin: 0.75rem 0;'>"
-        f"<p style='margin: 0 0 0.5rem 0; color: #f3f4f6;'><strong>Justification for {vuln_id} on {system_id}:</strong></p>"
-        f"<p style='color: #9ca3af; font-size: 0.9rem; margin: 0 0 0.5rem 0;'>• {path_context}</p>"
-        f"<p style='color: #9ca3af; font-size: 0.9rem; margin: 0;'>• <strong>Temporal Constraint:</strong> {dep_text}</p>"
+        f"<div style='background-color: #111827; border: 1px solid #374151; border-radius: 6px; padding: 0.85rem 1rem; margin: 0.75rem 0;'>"
+        f"<p style='margin: 0 0 0.5rem 0; color: #f3f4f6;'><strong>Remediation Rationale for {vuln_id} on {system_id}:</strong></p>"
+        f"<p style='color: #d1d5db; font-size: 0.88rem; margin: 0 0 0.5rem 0;'>• <strong>🎯 Attack Path Alignment:</strong> {ap_rationale}</p>"
+        f"<p style='color: #d1d5db; font-size: 0.88rem; margin: 0 0 0.5rem 0;'>• <strong>💥 Operational & Risk Impact:</strong> {impact_reason}</p>"
+        f"<p style='color: #d1d5db; font-size: 0.88rem; margin: 0;'>• <strong>⏱️ CSP Temporal Constraint:</strong> {scheduling_reason}</p>"
         f"</div>",
         unsafe_allow_html=True,
     )
+
+    # Actionable Guidance
+    action = exp.get("recommended_action")
+    if action:
+        st.info(f"**Recommended Action:** {action}")
 
 
 # ---------------------------------------------------------------------------

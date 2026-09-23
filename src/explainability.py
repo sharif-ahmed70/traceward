@@ -123,6 +123,19 @@ def _load_system_risk_summary(risk_summary_path: str = "artifacts/risk/system_ri
         return {}
 
 
+@functools.lru_cache(maxsize=1)
+def _load_attack_path_nodes(attack_path_path: str = "artifacts/astar/attack_path.json") -> List[str]:
+    """Load ordered node identifiers from the active A* attack path artifact."""
+    p = Path(attack_path_path)
+    if not p.exists():
+        return ["INTERNET", "WEB01", "APP01", "DB01"]
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        return data.get("path", ["INTERNET", "WEB01", "APP01", "DB01"])
+    except Exception:
+        return ["INTERNET", "WEB01", "APP01", "DB01"]
+
+
 # ---------------------------------------------------------------------------
 # Core Explainability Engine Components
 # ---------------------------------------------------------------------------
@@ -644,21 +657,145 @@ def explain_patch_priority(
     reason: Optional[str] = None,
     scheduled_slot: Optional[str] = None,
     team: Optional[str] = None,
+    depends_on: Optional[Iterable[str]] = None,
+    attack_path_path: str = "artifacts/astar/attack_path.json",
+    network_path: str = "data/network/network.json",
+    dataset_path: str = "data/processed/vulnerabilities_processed.csv",
 ) -> Dict[str, Any]:
-    """Explain why a remediation task has its priority and schedule."""
-    reason_text = reason or "Priority supplied by the upstream risk-analysis contract."
-    schedule_text = (
-        f"Scheduled for {scheduled_slot} with {team}." if scheduled_slot and team else "Schedule not assigned yet."
+    """Explain why a remediation task has its priority, team assignment, and scheduled time slot.
+
+    Combines:
+    - Vulnerability risk metrics and exploitability/impact attribution
+    - Active A* attack path breach corridor relevance
+    - Host asset criticality and exposure scope
+    - CSP temporal ordering and prerequisite constraint justifications
+    - Targeted actionable remediation guidance
+
+    Returns:
+        Dict containing:
+        - Legacy keys: type, vuln_id, system_id, priority, reason, scheduled_slot, team, summary
+        - Enriched structured keys:
+          - vulnerability_id, risk_level, prerequisites
+          - attack_path_relevance: is_on_attack_path, path_role, corridor, rationale
+          - impact_reason: evidence-based impact on system and enterprise operations
+          - scheduling_reason: explanation of assigned operational time slot and dependencies
+          - recommended_action: targeted mitigation advice
+          - asset_context: host metadata from network topology
+          - subscores: exploitability, impact, and primary risk driver
+    """
+    asset_ctx = get_system_context(system_id, network_path=network_path)
+    attack_path = _load_attack_path_nodes(attack_path_path)
+    vuln_records = _load_processed_vulnerabilities(dataset_path)
+
+    # Feature attribution subscores
+    vuln_features = vuln_records.get(
+        vuln_id,
+        {
+            "attack_complexity": 0,
+            "privileges_required": 1,
+            "user_interaction": 0,
+            "confidentiality_impact": 1,
+            "integrity_impact": 1,
+            "availability_impact": 1,
+            "exploit_probability": 0.5,
+        },
     )
+    contrib_res = compute_feature_contributions(vuln_features)
+    subscores = contrib_res["subscores"]
+
+    # Attack path relevance assessment
+    corridor_systems = [n for n in attack_path if n != "INTERNET"]
+    is_on_attack_path = system_id in corridor_systems
+    corridor_str = " -> ".join(attack_path)
+
+    if is_on_attack_path:
+        if len(corridor_systems) > 0 and system_id == corridor_systems[0]:
+            path_role = "Perimeter Ingress & Initial Foothold"
+            ap_rationale = (
+                f"Host {system_id} sits directly at the external perimeter of the active adversary breach "
+                f"corridor ({corridor_str}). Remediating this vulnerability eliminates the attacker's initial "
+                "foothold and severs traversal into internal segments."
+            )
+        elif len(corridor_systems) > 1 and system_id == corridor_systems[-1]:
+            path_role = "Crown Jewel & Exfiltration Target"
+            ap_rationale = (
+                f"Host {system_id} is the ultimate objective on the active breach corridor ({corridor_str}). "
+                "Remediating this vulnerability hardens the primary data repository against database "
+                "compromise and unauthorized exfiltration."
+            )
+        else:
+            path_role = "Lateral Movement & Pivot Point"
+            ap_rationale = (
+                f"Host {system_id} is an intermediate pivot on the active breach corridor ({corridor_str}). "
+                "Remediating this flaw prevents the adversary from traversing between the perimeter and core internal assets."
+            )
+    else:
+        path_role = "Defense-in-Depth & Adjacent Protection"
+        ap_rationale = (
+            f"Host {system_id} is an adjacent enterprise system outside the primary breach corridor ({corridor_str}). "
+            "Remediation reinforces lateral defense-in-depth and eliminates secondary pivot corridors."
+        )
+
+    attack_path_relevance = {
+        "is_on_attack_path": is_on_attack_path,
+        "path_role": path_role,
+        "corridor": corridor_str,
+        "rationale": ap_rationale,
+    }
+
+    # Evidence-based impact reason
+    crit_label = asset_ctx.get("criticality_label", "Level 3/5")
+    host_name = asset_ctx.get("name", system_id)
+    impact_reason = (
+        f"Evaluated as {priority} priority on {host_name} ({system_id}, {crit_label}). "
+        f"Primary risk driver is {subscores['primary_driver']} "
+        f"(Exploitability={subscores['exploitability_score']:.2f}, Impact={subscores['impact_score']:.2f}), "
+        f"posing critical operational and compliance exposure if left unmitigated."
+    )
+
+    # CSP Scheduling justification
+    dep_list = list(depends_on) if depends_on else []
+    slot_label = scheduled_slot or "Assigned Slot"
+    team_label = team or "Assigned Team"
+
+    if dep_list:
+        scheduling_reason = (
+            f"Scheduled for {slot_label} under temporal dependency constraints: requires prior remediation of "
+            f"{', '.join(dep_list)}. CSP constraint enforcement mandates boundary/database containment before "
+            f"{team_label} applies internal application-tier patches."
+        )
+    else:
+        scheduling_reason = (
+            f"Scheduled for opening window {slot_label}: zero prerequisite dependencies. "
+            f"CSP solver prioritizes immediate execution by {team_label} to neutralize high-exposure entry vectors."
+        )
+
+    # Actionable guidance
+    action = generate_recommended_action(priority, asset_ctx, subscores)
+
+    # Legacy texts
+    reason_text = reason or ap_rationale
+    schedule_text = f"Scheduled for {scheduled_slot} with {team}." if scheduled_slot and team else "Schedule not assigned yet."
+    summary_text = f"{vuln_id} on {system_id} is marked {priority}. {reason_text} {schedule_text}"
+
     return {
         "type": "patch_priority",
         "vuln_id": vuln_id,
+        "vulnerability_id": vuln_id,
         "system_id": system_id,
         "priority": priority,
+        "risk_level": priority,
         "reason": reason_text,
         "scheduled_slot": scheduled_slot,
         "team": team,
-        "summary": f"{vuln_id} on {system_id} is marked {priority}. {reason_text} {schedule_text}",
+        "prerequisites": dep_list,
+        "attack_path_relevance": attack_path_relevance,
+        "impact_reason": impact_reason,
+        "scheduling_reason": scheduling_reason,
+        "recommended_action": action,
+        "asset_context": asset_ctx,
+        "subscores": subscores,
+        "summary": summary_text,
     }
 
 

@@ -263,6 +263,7 @@ def render_patch_plan(csp_result):
         reason="Priority comes from upstream risk rating and attack-path alignment.",
         scheduled_slot=row["time_slot"],
         team=row["team"],
+        depends_on=task_dict.get("depends_on", []),
     )
     st.write(explanation["summary"])
     render_remediation_priority_card(explanation, task_dict)
