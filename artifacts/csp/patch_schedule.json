@@ -1,6 +1,6 @@
 [
   {
-    "vuln_id": "VULN-001",
+    "vuln_id": "V0036",
     "system_id": "WEB01",
     "priority": "Critical",
     "team": "Web Team",
@@ -8,39 +8,39 @@
     "depends_on": []
   },
   {
-    "vuln_id": "VULN-002",
+    "vuln_id": "V0128",
     "system_id": "DB01",
-    "priority": "High",
+    "priority": "Critical",
     "team": "Database Team",
     "time_slot": "Mon 09:00",
     "depends_on": []
   },
   {
-    "vuln_id": "VULN-005",
+    "vuln_id": "V0186",
     "system_id": "VPN01",
-    "priority": "Medium",
+    "priority": "Critical",
     "team": "Network Team",
     "time_slot": "Mon 09:00",
     "depends_on": []
   },
   {
-    "vuln_id": "VULN-003",
+    "vuln_id": "V0426",
     "system_id": "APP01",
-    "priority": "High",
+    "priority": "Critical",
     "team": "Application Team",
     "time_slot": "Mon 14:00",
     "depends_on": [
-      "VULN-001"
+      "V0036"
     ]
   },
   {
-    "vuln_id": "VULN-004",
+    "vuln_id": "V0040",
     "system_id": "BACKUP01",
-    "priority": "Medium",
+    "priority": "Critical",
     "team": "Database Team",
     "time_slot": "Mon 14:00",
     "depends_on": [
-      "VULN-002"
+      "V0128"
     ]
   }
 ]

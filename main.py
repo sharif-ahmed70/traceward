@@ -171,9 +171,15 @@ def run_pipeline():
     print("[8/8] Solving Constraint Satisfaction Problem (CSP) for Remediation...")
     csp_result = solve_csp()
     print(f"      Remediation Solver: {csp_result['solver']} (Status: {csp_result['status']})")
+    meta = csp_result.get("metadata", {})
+    if meta.get("source") == "live_pipeline":
+        print(f"      Pipeline Integration: Selected {meta['selected_task_count']} high-impact tasks from {meta['total_evaluated_vulnerabilities']} predictions")
+        print(f"      Attack Path Alignment: Prioritized perimeter and intermediate targets on {', '.join(meta['attack_path_systems'])}")
+        print(f"      Pending Backlog: {meta['pending_backlog_count']} vulnerabilities queued for subsequent scheduling cycles")
     print("      Generated Feasible Patch Schedule:")
     for task in csp_result["schedule"]:
-        print(f"        - {task['time_slot']}: {task['team']} -> {task['vuln_id']} ({task['priority']} on {task['system_id']})")
+        dep_str = f" [Prerequisite: {', '.join(task['depends_on'])}]" if task.get("depends_on") else ""
+        print(f"        - {task['time_slot']}: {task['team']} -> {task['vuln_id']} ({task['priority']} on {task['system_id']}){dep_str}")
 
     csp_out = Path("artifacts/csp/patch_schedule.json")
     csp_out.parent.mkdir(parents=True, exist_ok=True)

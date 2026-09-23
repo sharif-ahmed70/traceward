@@ -18,12 +18,17 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.csp_solver import solve_csp  # noqa: E402
+from src.csp_solver import CSPCase, VulnerabilityTask, solve_csp  # noqa: E402
 from src.explainability import (  # noqa: E402
     explain_attack_path,
     explain_patch_priority,
     explain_risk,
 )
+from src.knn_classifier import (  # noqa: E402
+    FEATURE_COLUMNS,
+    predict_single_vulnerability,
+)
+from src.what_if_simulation import simulate_patch_impact  # noqa: E402
 
 st.set_page_config(page_title="TraceWard", page_icon="🛡️", layout="wide")
 
@@ -138,6 +143,74 @@ def render_risk_prediction(risk_df, clusters_df, is_mock):
             st.write(f"- {factor}")
         st.caption(explanation["cluster_context"])
 
+    st.markdown("---")
+    st.subheader("Interactive Model Inference (Predict New Vulnerability)")
+    st.caption("Submit custom security features to the fitted KNN pipeline in real-time.")
+
+    with st.form("new_vuln_prediction_form"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            ac_map = {"Low (0)": 0, "High (1)": 1}
+            ac_choice = st.selectbox("Attack Complexity", list(ac_map.keys()), index=0)
+            pr_map = {"None (0)": 0, "Low (1)": 1, "High (2)": 2}
+            pr_choice = st.selectbox("Privileges Required", list(pr_map.keys()), index=0)
+            ui_map = {"None (0)": 0, "Required (1)": 1}
+            ui_choice = st.selectbox("User Interaction", list(ui_map.keys()), index=0)
+        with col2:
+            ci_map = {"None (0)": 0, "Low (1)": 1, "High (2)": 2}
+            ci_choice = st.selectbox("Confidentiality Impact", list(ci_map.keys()), index=2)
+            ii_choice = st.selectbox("Integrity Impact", list(ci_map.keys()), index=2)
+            ai_choice = st.selectbox("Availability Impact", list(ci_map.keys()), index=2)
+        with col3:
+            exp_prob = st.slider("Exploit Probability", min_value=0.0, max_value=1.0, value=0.85, step=0.05)
+            target_sys = st.selectbox("Target System", ["WEB01", "APP01", "AUTH01", "VPN01", "EMP01", "DB01", "BACKUP01"])
+            submit_pred = st.form_submit_button("Predict Risk Class")
+
+    if submit_pred:
+        custom_features = {
+            "attack_complexity": ac_map[ac_choice],
+            "privileges_required": pr_map[pr_choice],
+            "user_interaction": ui_map[ui_choice],
+            "confidentiality_impact": ci_map[ci_choice],
+            "integrity_impact": ci_map[ii_choice],
+            "availability_impact": ci_map[ai_choice],
+            "exploit_probability": exp_prob,
+        }
+        try:
+            pred_result = predict_single_vulnerability(custom_features)
+            p_class = pred_result["predicted_risk"]
+            p_probs = pred_result.get("probabilities", {})
+
+            st.success(f"Predicted Risk Level: **{p_class}**")
+            p_cols = st.columns(4)
+            for idx, c_name in enumerate(["Low", "Medium", "High", "Critical"]):
+                c_vote = p_probs.get(c_name, 0.0)
+                p_cols[idx].metric(f"{c_name} Vote Share", f"{c_vote * 100:.1f}%")
+
+            st.caption(
+                "Metric definition: Values represent KNN neighbor vote shares (fraction of K=3 nearest training instances "
+                "assigned to each class). These are uncalibrated vote shares, not Bayesian posterior probabilities or certainty guarantees."
+            )
+
+            exp = explain_risk(
+                "NEW-VULN-PRED",
+                target_sys,
+                p_class,
+                risk_factors=[
+                    f"Attack Complexity: {ac_choice}",
+                    f"Privileges Required: {pr_choice}",
+                    f"Exploit Probability: {exp_prob:.2f}",
+                    f"Impact: C={ci_choice}, I={ii_choice}, A={ai_choice}",
+                ],
+            )
+            st.info(
+                f"**Explanation:** Classification decision is **{p_class}** based on distance in the 7-dimensional "
+                "standardized feature space to nearest training instances. Distance metrics reflect geometric similarity "
+                "under CVSS metric distributions, not single-feature causal relationships."
+            )
+        except Exception as e:
+            st.error(f"Inference failed: {e}")
+
 
 def render_attack_path(attack_path_info, is_mock):
     st.header("Attack Graph / Path")
@@ -152,6 +225,22 @@ def render_attack_path(attack_path_info, is_mock):
 def render_patch_plan(csp_result):
     st.header("Patch Plan")
     st.caption("Feasible schedule produced by Backtracking CSP; respects team and time slot constraints.")
+
+    if csp_result.get("status") == "infeasible":
+        st.error(f"⚠️ CSP Infeasibility Detected: {csp_result.get('message', 'No feasible schedule exists.')}")
+        return
+
+    meta = csp_result.get("metadata", {})
+    if meta.get("source") == "live_pipeline":
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Scheduled Tasks", meta.get("selected_task_count", len(csp_result["schedule"])))
+        c2.metric("Pending Backlog", meta.get("pending_backlog_count", 0))
+        c3.metric("Evaluated Predictions", meta.get("total_evaluated_vulnerabilities", len(csp_result["schedule"])))
+        st.caption(
+            f"**Selection Rule:** {meta.get('selection_rule', 'Attack-path aligned priority tasks.')} "
+            "Remediation is partitioned into operational windows; non-scheduled items remain in the pending queue."
+        )
+
     schedule = pd.DataFrame(csp_result["schedule"])
     st.dataframe(schedule, width="stretch", hide_index=True)
 
@@ -167,22 +256,104 @@ def render_patch_plan(csp_result):
     )
     st.write(explanation["summary"])
 
-    with st.expander("CSP contract"):
+    with st.expander("CSP contract & Infeasibility Handling"):
         st.write("Variables", csp_result["variables"])
         st.write("Domains", csp_result["domains"])
         st.write("Constraints")
         for constraint in csp_result["constraints"]:
             st.write(f"- {constraint}")
 
+        st.markdown("---")
+        st.caption("Test constraint enforcement: Simulate overconstrained schedule (2 tasks for 1 team in 1 slot)")
+        if st.button("Test Infeasible Scenario"):
+            infeasible_case = CSPCase(
+                vulnerabilities=(
+                    VulnerabilityTask("VULN-001", "WEB01", "Critical", "Web Team"),
+                    VulnerabilityTask("VULN-003", "APP01", "High", "Web Team"),
+                ),
+                available_teams=("Web Team",),
+                time_slots=("Mon 09:00",),
+            )
+            inf_res = solve_csp(infeasible_case, raise_on_infeasible=False)
+            if inf_res["status"] == "infeasible":
+                st.warning(f"Solver correctly identified infeasibility: {inf_res['message']}")
+
 
 def render_what_if():
-    st.header("What-If Analysis")
-    st.caption("Scenario analysis controls. Demonstrates interactive simulation capability.")
-    priority = st.selectbox("Scenario", ["Current baseline priorities", "Upgrade VULN-004 to High", "Simulate Zero-Day on DB01"])
-    extra_team = st.checkbox("Add temporary Database Team slot")
-    st.write(f"Active Scenario: **{priority}**")
-    st.write(f"Additional capacity enabled: **{'Yes' if extra_team else 'No'}**")
-    st.info("Scenario simulation provides defensive risk forecasting before committing remediation resources.")
+    st.header("What-If Scenario Simulation (System-Level Hardening)")
+    st.caption(
+        "Defensive simulation: evaluates the security impact of hardening an entire enterprise system "
+        "(multi-vulnerability remediation across a host). "
+        "Unit of analysis: Entire system. Operates on an isolated deep copy of the baseline state; "
+        "network topology connectivity is preserved and baseline disk artifacts remain unmodified."
+    )
+
+    risk_summary_path = Path("artifacts/risk/system_risk_summary.csv")
+    if risk_summary_path.exists():
+        risk_df = pd.read_csv(risk_summary_path)
+        system_list = risk_df["system_id"].tolist()
+    else:
+        system_list = ["WEB01", "APP01", "DB01", "AUTH01", "VPN01", "EMP01", "BACKUP01"]
+
+    col1, col2 = st.columns(2)
+    with col1:
+        target_sys = st.selectbox("Target System to Harden / Remediate", system_list, index=0)
+    with col2:
+        reduction = st.slider("System Risk Reduction (% Hardening)", min_value=10, max_value=90, value=50, step=10)
+
+    col_btn1, col_btn2 = st.columns([1, 4])
+    run_sim = col_btn1.button("Run Simulation", type="primary")
+    reset_sim = col_btn2.button("Restore Baseline")
+
+    if reset_sim:
+        st.session_state.pop("sim_result", None)
+        st.info("Baseline state active. No simulation changes applied.")
+        return
+
+    if run_sim or "sim_result" in st.session_state:
+        if run_sim:
+            try:
+                res = simulate_patch_impact(
+                    target_sys,
+                    risk_reduction_factor=reduction / 100.0,
+                    start_node="INTERNET",
+                    goal_node="DB01",
+                )
+                st.session_state["sim_result"] = res
+            except Exception as e:
+                st.error(f"Simulation failed: {e}")
+                return
+
+        res = st.session_state.get("sim_result")
+        if res:
+            st.subheader(f"Simulation Results: Patching {res['target_system']} (-{reduction}%)")
+            st.info(f"**Impact Summary:** {res['explanation']}")
+
+            m1, m2, m3 = st.columns(3)
+            base_r = res["baseline"]["system_risk"]["normalized_risk"]
+            sim_r = res["simulated"]["system_risk"]["normalized_risk"]
+            r_delta = res["deltas"]["risk_reduction"]
+            m1.metric("System Risk", f"{sim_r:.3f}", f"-{r_delta:.3f}", delta_color="inverse")
+
+            base_cost = res["baseline"]["path_cost"]
+            sim_cost = res["simulated"]["path_cost"]
+            c_delta = res["deltas"]["path_cost_increase"]
+            m2.metric("Adversary Traversal Cost", f"{sim_cost:.2f}", f"+{c_delta:.2f} (Hardened)")
+
+            path_status = "Rerouted" if res["deltas"]["path_diverted"] else "Maintained (Hardened)"
+            m3.metric("Attack Path Status", path_status)
+
+            st.write("**Attack Path Comparison:**")
+            col_p1, col_p2 = st.columns(2)
+            with col_p1:
+                st.caption("Baseline A* Path")
+                st.code(" → ".join(res["baseline"]["attack_path"]))
+            with col_p2:
+                st.caption(f"Simulated A* Path (after patching {res['target_system']})")
+                st.code(" → ".join(res["simulated"]["attack_path"]))
+
+            with st.expander("System Risk Comparison (Before vs. After)"):
+                st.dataframe(res["simulated_risk_df"], width="stretch", hide_index=True)
 
 
 def main():
