@@ -97,6 +97,32 @@ def _load_processed_vulnerabilities(dataset_path: str = "data/processed/vulnerab
         return {}
 
 
+@functools.lru_cache(maxsize=1)
+def _load_system_risk_summary(risk_summary_path: str = "artifacts/risk/system_risk_summary.csv") -> Dict[str, Dict[str, Any]]:
+    """Index system risk summary metrics by system_id."""
+    p = Path(risk_summary_path)
+    if not p.exists():
+        return {}
+    try:
+        import pandas as pd
+        df = pd.read_csv(p)
+        result = {}
+        for _, row in df.iterrows():
+            sys_id = str(row.get("system_id", ""))
+            if sys_id:
+                result[sys_id] = {
+                    "system_id": sys_id,
+                    "normalized_risk": float(row.get("normalized_risk", 0.5)),
+                    "vulnerability_count": int(row.get("vulnerability_count", 0)),
+                    "highest_risk": str(row.get("highest_risk", "Medium")),
+                    "critical_count": int(row.get("critical_count", 0)),
+                    "high_or_critical_count": int(row.get("high_or_critical_count", 0)),
+                }
+        return result
+    except Exception:
+        return {}
+
+
 # ---------------------------------------------------------------------------
 # Core Explainability Engine Components
 # ---------------------------------------------------------------------------
@@ -483,21 +509,130 @@ def explain_attack_path(
     goal_node: str,
     path: List[str],
     total_cost: Optional[float] = None,
+    network_path: str = "data/network/network.json",
+    risk_summary_path: str = "artifacts/risk/system_risk_summary.csv",
 ) -> Dict[str, Any]:
-    """Explain the selected A* path without claiming it is an actual attack."""
-    path_text = " -> ".join(path) if path else "No path selected."
-    cost_text = f" Total path cost: {total_cost:g}." if total_cost is not None else ""
+    """Explain the selected A* attack path with structured intelligence and risk attribution.
+
+    Returns:
+        Dict containing:
+        - Legacy keys: type, start, goal, path, total_cost, summary, human_readable
+        - Enriched structured keys:
+          - entry_point, target_asset, hop_count
+          - path_nodes: node-by-node details with kill-chain phase, step cost, risk reason
+          - attack_logic: adversary optimization rationale
+          - business_impact: asset exposure and operational consequence
+    """
+    path_list = list(path) if path else []
+    hop_count = max(0, len(path_list) - 1) if path_list else 0
+
+    risk_data = _load_system_risk_summary(risk_summary_path)
+    path_nodes = []
+    cumulative_cost = 0.0
+
+    for i, node_id in enumerate(path_list):
+        node_ctx = get_system_context(node_id, network_path=network_path)
+        sys_risk = risk_data.get(node_id, {})
+        norm_risk = sys_risk.get("normalized_risk", 0.25 if node_id == "INTERNET" else 0.5)
+        highest_risk = sys_risk.get("highest_risk", "Critical" if norm_risk >= 0.6 else "Medium")
+        vuln_count = sys_risk.get("vulnerability_count", 0)
+
+        # Step cost calculation matching A* cost metric: max(0.5, round(2.0 - norm_risk, 2))
+        if i == 0:
+            step_cost = 0.0
+        else:
+            step_cost = max(0.5, round(2.0 - norm_risk, 2))
+            cumulative_cost += step_cost
+
+        # Determine Cyber Kill Chain phase and threat context
+        if i == 0:
+            phase = "Perimeter Ingress & External Exposure"
+            role = "Untrusted Public Network"
+            risk_reason = "Untrusted external network perimeter initiating adversary reconnaissance and breach vectors."
+        elif i == 1:
+            phase = "Initial Foothold & Perimeter Compromise"
+            role = node_ctx.get("role_description", "Perimeter-facing server")
+            risk_reason = (
+                f"Perimeter-exposed host with elevated vulnerability density ({vuln_count} flaws). "
+                f"Low traversal resistance (step cost {step_cost:.2f}) enables immediate foothold."
+            )
+        elif i == len(path_list) - 1:
+            phase = "Crown Jewel & Exfiltration Target"
+            role = node_ctx.get("role_description", "Core internal asset")
+            risk_reason = (
+                f"Primary adversary objective holding mission-critical data ({node_ctx.get('criticality_label')}). "
+                "Target reached via application-tier exploitation."
+            )
+        else:
+            phase = "Lateral Movement & Privilege Pivoting"
+            role = node_ctx.get("role_description", "Internal tier component")
+            risk_reason = (
+                f"Internal pivot host bridging perimeter to sensitive enterprise segments. "
+                f"Vulnerability density allows lateral hopping with step cost {step_cost:.2f}."
+            )
+
+        path_nodes.append({
+            "node_id": node_id,
+            "name": node_ctx.get("name", node_id),
+            "type": node_ctx.get("type", "Server"),
+            "role": role,
+            "criticality": node_ctx.get("criticality", 3),
+            "criticality_label": node_ctx.get("criticality_label", "Level 3/5"),
+            "internet_exposed": node_ctx.get("internet_exposed", False),
+            "phase": phase,
+            "step_cost": step_cost,
+            "cumulative_cost": round(cumulative_cost, 2),
+            "risk_score": norm_risk,
+            "risk_level": highest_risk,
+            "risk_reason": risk_reason,
+            "vulnerability_count": vuln_count,
+        })
+
+    resolved_cost = total_cost if total_cost is not None else (round(cumulative_cost, 2) if cumulative_cost > 0 else None)
+
+    # Adversary path optimization logic
+    attack_logic = (
+        "Adversary corridor computed via A* heuristic search over risk-weighted edge impedances "
+        r"($c(u,v) = \max(0.5, 2.0 - \text{Risk}(v))$). Nodes exhibiting higher vulnerability density "
+        "impose lower traversal impedance, establishing this path as the path of least resistance "
+        "from external ingress to internal enterprise assets."
+    )
+
+    # Business impact analysis
+    goal_ctx = get_system_context(goal_node, network_path=network_path)
+    business_impact = (
+        f"Critical breach corridor culminates at {goal_ctx.get('name', goal_node)} "
+        f"({goal_node}, {goal_ctx.get('criticality_label')}). Unauthorized access risks "
+        "unrestricted data exfiltration, database tampering, and regulatory compliance violations "
+        "across core enterprise operations."
+    )
+
+    path_text = " -> ".join(path_list) if path_list else "No path selected."
+    cost_text = f" Total path cost: {resolved_cost:g}." if resolved_cost is not None else ""
+    summary_text = (
+        f"Risk-aware analysis identified a {hop_count}-hop critical breach corridor ({path_text}).{cost_text}"
+        if path_list
+        else "No path selected."
+    )
+    human_readable_text = (
+        "This simulated breach corridor is derived from A* graph traversal over risk-weighted friction metrics; "
+        "it serves defensive prioritization and attack-surface reduction."
+    )
+
     return {
         "type": "attack_path",
         "start": start_node,
         "goal": goal_node,
-        "path": path,
-        "total_cost": total_cost,
-        "summary": f"Risk-aware analysis selected the simulated route {path_text}.{cost_text}",
-        "human_readable": (
-            "This is a simulated network path for defensive risk analysis; it does not represent "
-            "an exploitation procedure."
-        ),
+        "path": path_list,
+        "total_cost": resolved_cost,
+        "summary": summary_text,
+        "human_readable": human_readable_text,
+        "entry_point": start_node,
+        "target_asset": goal_node,
+        "hop_count": hop_count,
+        "path_nodes": path_nodes,
+        "attack_logic": attack_logic,
+        "business_impact": business_impact,
     }
 
 

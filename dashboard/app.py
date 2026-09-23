@@ -34,9 +34,9 @@ from src.what_if_simulation import simulate_patch_impact  # noqa: E402
 st.set_page_config(page_title="TraceWard", page_icon="🛡️", layout="wide")
 
 try:
-    from dashboard.ui import inject_dark_theme
     from dashboard.ui import (
         inject_dark_theme,
+        render_attack_path_intelligence,
         render_remediation_priority_card,
         render_structured_explanation_card,
     )
@@ -144,12 +144,10 @@ def render_risk_prediction(risk_df, clusters_df, is_mock):
         cluster_matches = clusters_df.loc[clusters_df["vuln_id"] == selected]
         cluster_id = int(cluster_matches.iloc[0]["cluster_id"]) if not cluster_matches.empty else None
 
-        explanation = explain_risk(
         explanation = explain_vulnerability(
             row["vuln_id"],
             row["system_id"],
             row["predicted_risk"],
-            risk_factors=[f"Predicted class: {row['predicted_risk']}", f"System: {row['system_id']}"],
             cluster_id=cluster_id,
         )
         st.write(explanation["summary"])
@@ -207,17 +205,10 @@ def render_risk_prediction(risk_df, clusters_df, is_mock):
                 "assigned to each class). These are uncalibrated vote shares, not Bayesian posterior probabilities or certainty guarantees."
             )
 
-            exp = explain_risk(
             exp = explain_vulnerability(
                 "NEW-VULN-PRED",
                 target_sys,
                 p_class,
-                risk_factors=[
-                    f"Attack Complexity: {ac_choice}",
-                    f"Privileges Required: {pr_choice}",
-                    f"Exploit Probability: {exp_prob:.2f}",
-                    f"Impact: C={ci_choice}, I={ii_choice}, A={ai_choice}",
-                ],
                 features=custom_features,
                 vote_share=p_probs.get(p_class, 1.0),
             )
@@ -235,10 +226,9 @@ def render_attack_path(attack_path_info, is_mock):
     st.header("Attack Graph / Path")
     tag = "Mock A* path" if is_mock else "Live A* attack path"
     st.caption(f"{tag} for defensive network-risk analysis.")
-    st.code(" → ".join(attack_path_info["path"]))
-    st.metric("Total path cost", attack_path_info["total_cost"])
-    st.write(attack_path_info["summary"])
-    st.caption(attack_path_info["human_readable"])
+    st.info(f"**Critical Corridor Identification:** {attack_path_info.get('summary', '')}")
+    st.caption(attack_path_info.get("human_readable", ""))
+    render_attack_path_intelligence(attack_path_info, is_mock=is_mock)
 
 
 def render_patch_plan(csp_result):
@@ -270,7 +260,6 @@ def render_patch_plan(csp_result):
         row["vuln_id"],
         row["system_id"],
         row["priority"],
-        reason="Priority comes from upstream risk rating.",
         reason="Priority comes from upstream risk rating and attack-path alignment.",
         scheduled_slot=row["time_slot"],
         team=row["team"],

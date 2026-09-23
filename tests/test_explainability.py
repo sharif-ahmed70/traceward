@@ -167,6 +167,63 @@ class TestExplainabilityEngine(unittest.TestCase):
         self.assertEqual(patch["scheduled_slot"], "Mon 09:00")
         self.assertEqual(patch["team"], "Web Team")
 
+    def test_explain_attack_path_structured_schema(self):
+        path_list = ["INTERNET", "WEB01", "APP01", "DB01"]
+        res = explain_attack_path("INTERNET", "DB01", path_list, 4.08)
+
+        # Legacy fields
+        self.assertEqual(res["type"], "attack_path")
+        self.assertEqual(res["start"], "INTERNET")
+        self.assertEqual(res["goal"], "DB01")
+        self.assertEqual(res["path"], path_list)
+        self.assertEqual(res["total_cost"], 4.08)
+        self.assertIn("4.08", res["summary"])
+
+        # Enriched structured fields
+        self.assertEqual(res["entry_point"], "INTERNET")
+        self.assertEqual(res["target_asset"], "DB01")
+        self.assertEqual(res["hop_count"], 3)
+        self.assertIn("attack_logic", res)
+        self.assertIn("business_impact", res)
+        self.assertIn("DB01", res["business_impact"])
+        self.assertIn("A*", res["attack_logic"])
+
+        # Path nodes schema validation
+        self.assertEqual(len(res["path_nodes"]), 4)
+        expected_keys = {
+            "node_id", "name", "type", "role", "criticality", "criticality_label",
+            "internet_exposed", "phase", "step_cost", "cumulative_cost",
+            "risk_score", "risk_level", "risk_reason", "vulnerability_count"
+        }
+        for node in res["path_nodes"]:
+            self.assertTrue(expected_keys.issubset(set(node.keys())))
+
+        # First node (Ingress)
+        first = res["path_nodes"][0]
+        self.assertEqual(first["node_id"], "INTERNET")
+        self.assertEqual(first["step_cost"], 0.0)
+        self.assertIn("Ingress", first["phase"])
+
+        # Intermediate node (Lateral)
+        intermediate = res["path_nodes"][2]
+        self.assertEqual(intermediate["node_id"], "APP01")
+        self.assertIn("Lateral", intermediate["phase"])
+
+        # Final node (Crown Jewel)
+        last = res["path_nodes"][3]
+        self.assertEqual(last["node_id"], "DB01")
+        self.assertIn("Crown Jewel", last["phase"])
+        self.assertEqual(last["criticality"], 5)
+
+    def test_explain_attack_path_empty_and_single_node(self):
+        empty_res = explain_attack_path("INTERNET", "DB01", [])
+        self.assertEqual(empty_res["hop_count"], 0)
+        self.assertEqual(len(empty_res["path_nodes"]), 0)
+
+        single_res = explain_attack_path("DB01", "DB01", ["DB01"])
+        self.assertEqual(single_res["hop_count"], 0)
+        self.assertEqual(len(single_res["path_nodes"]), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
