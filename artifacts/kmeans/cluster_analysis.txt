@@ -1,0 +1,65 @@
+======================================================================
+TraceWard — K-Means Clustering & Structural Profile Analysis
+======================================================================
+
+1. Candidate Cluster Evaluation (K = 2 through 8)
+--------------------------------------------------
+K     Inertia        Silhouette Score
+--------------------------------------------------
+2     6945.63        0.1648          
+3     6269.45        0.1465          
+4     5728.58        0.1488           <-- Selected Elbow
+5     5377.01        0.1503          
+6     5065.25        0.1640          
+7     4887.04        0.1488          
+8     4516.07        0.1781          
+
+Centered Second Difference: C(k) = I(k-1) - 2*I(k) + I(k+1) for k in [3, 7]
+--------------------------------------------------
+k     C(k)           Interpretation                
+--------------------------------------------------
+3     135.31         
+4     189.30          <-- Maximum Curvature (Elbow)
+5     39.81          
+6     133.55         
+7     -192.76        
+
+2. Selection Justification
+--------------------------------------------------
+K=4 was selected using the discrete centered second difference elbow heuristic: C(k) = I(k-1) - 2*I(k) + I(k+1) evaluated over interior candidates k in [3, 7]. At K=4, C(4) = 189.30, representing the maximum deceleration in inertia reduction among interior candidates (C(3)=135.31, C(4)=189.30, C(5)=39.81, C(6)=133.55, C(7)=-192.76). This is a discrete elbow heuristic, not proof of a unique optimal cluster count. Across all evaluated K, the observed Silhouette scores show only modest cluster separation (0.1465 to 0.1781) and disagree with the elbow heuristic, peaking at K=8 (0.1781) versus K=4 (0.1488). K=4 is retained under the elbow heuristic to balance variance reduction against model complexity.
+
+3. Cluster Profile Interpretation (K = 4)
+--------------------------------------------------
+Note on Encodings: Categorical features are encoded as:
+  - attack_complexity: 0=Low, 1=High
+  - privileges_required: 0=None, 1=Low, 2=High
+  - user_interaction: 0=None, 1=Required
+  - impact (Conf/Integ/Avail): 0=None, 1=Low, 2=High
+  - exploit_probability: continuous [0.0, 1.0]
+
+Cluster 0 (Size: 299 records, 24.92%):
+  - Measured Metrics: Exploit Prob=0.318, Priv Req Mean=1.007, User Inter Mean=0.000, Avg Impact=0.628, Attack Complexity Mean=0.522
+  - Measured Profile: Vulnerabilities characterized by User Interaction = None (0.0), Low-to-moderate C/I/A impact (avg=0.63), and lower exploit probability (mean=0.32).
+  - Privilege Distribution Note: Privileges Required mean is 1.007 on the 0=None, 1=Low, 2=High ordinal scale (reflecting a mixed distribution across privilege tiers rather than a single uniform level).
+
+Cluster 1 (Size: 309 records, 25.75%):
+  - Measured Metrics: Exploit Prob=0.332, Priv Req Mean=1.049, User Inter Mean=1.000, Avg Impact=0.606, Attack Complexity Mean=0.485
+  - Measured Profile: Vulnerabilities characterized by User Interaction = Required (1.0), Low-to-moderate C/I/A impact (avg=0.61), and lower exploit probability (mean=0.33).
+  - Privilege Distribution Note: Privileges Required mean is 1.049 on the 0=None, 1=Low, 2=High ordinal scale (reflecting a mixed distribution across privilege tiers rather than a single uniform level).
+
+Cluster 2 (Size: 289 records, 24.08%):
+  - Measured Metrics: Exploit Prob=0.693, Priv Req Mean=0.827, User Inter Mean=0.000, Avg Impact=1.487, Attack Complexity Mean=0.439
+  - Measured Profile: Vulnerabilities characterized by User Interaction = None (0.0), Elevated C/I/A impact (avg=1.49), and higher exploit probability (mean=0.69).
+  - Privilege Distribution Note: Privileges Required mean is 0.827 on the 0=None, 1=Low, 2=High ordinal scale (reflecting a mixed distribution across privilege tiers rather than a single uniform level).
+
+Cluster 3 (Size: 303 records, 25.25%):
+  - Measured Metrics: Exploit Prob=0.714, Priv Req Mean=0.779, User Inter Mean=1.000, Avg Impact=1.469, Attack Complexity Mean=0.465
+  - Measured Profile: Vulnerabilities characterized by User Interaction = Required (1.0), Elevated C/I/A impact (avg=1.47), and higher exploit probability (mean=0.71).
+  - Privilege Distribution Note: Privileges Required mean is 0.779 on the 0=None, 1=Low, 2=High ordinal scale (reflecting a mixed distribution across privilege tiers rather than a single uniform level).
+
+4. Methodological Distinction: Clusters vs. Risk Classes
+--------------------------------------------------
+Crucial Note: Clusters represent structural groupings across the 7 feature dimensions (interaction,
+exploitability, privilege, and impact attributes). They do NOT equate directly to severity classes
+(Low, Medium, High, Critical). Risk ratings are predicted separately via supervised learning (KNN).
+======================================================================
