@@ -56,6 +56,35 @@ This document specifies the responsibilities, inputs, and outputs for every modu
 
 ---
 
+### Risk Engine Module (Team Lead)
+
+- **File**: `src/risk_engine.py`
+- **Responsibility**: Aggregate vulnerability-level KNN predictions into system-level risk metrics.
+- **Input**:
+  - `artifacts/knn/predictions.csv`
+- **Minimum Required Columns**:
+  - `vuln_id`
+  - `system_id`
+  - `predicted_risk`
+- **Expected Output**:
+  - `artifacts/risk/system_risk_summary.csv`
+- **Output Columns**:
+  - `system_id`
+  - `vulnerability_count`
+  - `highest_risk`
+  - `average_risk_score`
+  - `normalized_risk`
+  - `critical_count`
+  - `high_or_critical_count`
+- **Technical Clarifications**:
+  - The risk engine aggregates KNN vulnerability-level predictions.
+  - `normalized_risk` ranges from `0.25` to `1.0` when valid predictions exist (`average_risk_score / 4.0`).
+  - This value represents system risk severity.
+  - It is **NOT** automatically an A* edge cost.
+  - Network and A* logic may later consume it according to their own module design.
+
+---
+
 ### D. Graph Builder Module
 
 - **File**: `src/graph_builder.py`

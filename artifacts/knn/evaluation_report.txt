@@ -1,0 +1,49 @@
+======================================================================
+TraceWard — KNN Risk Classifier Evaluation Report
+======================================================================
+
+1. Experimental Setup & Model Selection
+--------------------------------------------------
+Partition Split:       Stratified 80/20 (Train=960, Held-out Test=240)
+Model Selection:       Stratified 5-Fold Cross-Validation on Training Partition Only
+Candidate K Values:    [3, 5, 7, 9]
+Selected K:            3
+Data Leakage Control:  StandardScaler fitted strictly inside CV folds & final training pipeline
+
+2. Held-out Test Partition Metrics
+--------------------------------------------------
+Test Accuracy:         0.7375 (177/240 correct)
+Weighted Precision:    0.7288
+Weighted Recall:       0.7375
+Weighted F1-Score:     0.7298
+
+3. Detailed Classification Report (Per Class)
+--------------------------------------------------
+              precision    recall  f1-score   support
+
+         Low     0.8060    0.9000    0.8504        60
+      Medium     0.6667    0.6000    0.6316        60
+        High     0.6600    0.5500    0.6000        60
+    Critical     0.7826    0.9000    0.8372        60
+
+    accuracy                         0.7375       240
+   macro avg     0.7288    0.7375    0.7298       240
+weighted avg     0.7288    0.7375    0.7298       240
+
+4. Confusion Matrix (rows = True Label, cols = Predicted Label)
+--------------------------------------------------
+Labels: ['Low', 'Medium', 'High', 'Critical']
+  Low       : [54, 6, 0, 0]
+  Medium    : [13, 36, 11, 0]
+  High      : [0, 12, 33, 15]
+  Critical  : [0, 0, 6, 54]
+
+5. Methodological & Historical Disclosure
+--------------------------------------------------
+Note on Evaluation: During early baseline prototyping, K was selected directly by evaluating
+against the test set (which favored K=9 at 77.92%). To establish a sound, defensible ML methodology,
+the current pipeline selects K strictly via 5-Fold Cross-Validation on the training partition (selecting K=3)
+and evaluates once on the held-out test partition (achieving 73.75% accuracy, 0.7298 F1).
+Because this test partition was examined during earlier exploratory runs, this result represents a
+reproducible held-out evaluation on the designated split rather than a fully blind external benchmark.
+======================================================================
