@@ -85,9 +85,9 @@ def validate_raw_data(df):
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
 
-    # 2. No empty cells
-    if (df == "").any().any():
-        raise ValueError("Dataset contains empty cells.")
+    # 2. No empty cells or missing values
+    if (df == "").any().any() or df.isnull().any().any():
+        raise ValueError("Dataset contains empty cells or missing values.")
 
     # 3. Unique vuln_id
     if not df["vuln_id"].is_unique:
@@ -162,7 +162,7 @@ def preprocess_vulnerabilities(
     output_dir = Path(output_path).parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    processed_df.to_csv(output_path, index=False, encoding="utf-8")
+    processed_df.to_csv(output_path, index=False, encoding="utf-8", lineterminator="\n")
     return processed_df
 
 
