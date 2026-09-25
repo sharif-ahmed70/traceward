@@ -26,6 +26,45 @@ FEATURE_COLUMNS = [
 ]
 
 
+def load_processed_data(path="data/processed/vulnerabilities_processed.csv"):
+    """Load processed vulnerability dataset for K-Means clustering."""
+    in_file = Path(path)
+    if not in_file.exists():
+        raise FileNotFoundError(f"Input data file not found: {path}")
+    df = pd.read_csv(in_file, encoding="utf-8")
+    return df
+
+
+def validate_kmeans_input(df):
+    """Validate DataFrame before K-Means fitting.
+
+    Checks required columns, non-empty identifiers, numeric features,
+    and absence of missing values in feature columns.
+    """
+    required_cols = FEATURE_COLUMNS + ["vuln_id", "system_id"]
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+
+    if len(df) == 0:
+        raise ValueError("Dataset is empty.")
+
+    if df["vuln_id"].isnull().any() or (df["vuln_id"] == "").any():
+        raise ValueError("vuln_id contains missing or empty values.")
+
+    if df["system_id"].isnull().any() or (df["system_id"] == "").any():
+        raise ValueError("system_id contains missing or empty values.")
+
+    for col in FEATURE_COLUMNS:
+        if not pd.api.types.is_numeric_dtype(df[col]):
+            raise ValueError(f"Feature column '{col}' is not numeric.")
+
+    if df[FEATURE_COLUMNS].isnull().any().any():
+        raise ValueError("Feature columns contain missing values.")
+
+    return True
+
+
 def compare_k_values(X_scaled, k_range=range(2, 9), random_state=42):
     """Evaluate candidate cluster counts using Inertia and Silhouette scores.
 
@@ -43,6 +82,11 @@ def compare_k_values(X_scaled, k_range=range(2, 9), random_state=42):
             "silhouette_score": round(sil, 4),
         })
     return pd.DataFrame(records)
+
+
+def select_k(metrics_df):
+    """Select best K from metrics DataFrame. Alias for select_best_k."""
+    return select_best_k(metrics_df)
 
 
 def select_best_k(metrics_df):
@@ -139,7 +183,11 @@ def plot_metrics(metrics_df, output_dir=Path("artifacts/kmeans")):
 
 
 def compute_cluster_profiles(df, cluster_labels):
-    """Compute cluster sizes and feature-level centroid profiles on the original scale."""
+    """Compute cluster sizes and feature-level centroid profiles on the original scale.
+
+    Includes post-hoc risk-label distribution for interpretation only.
+    Risk statistics do NOT affect cluster assignments.
+    """
     df_temp = df.copy()
     df_temp["cluster_id"] = cluster_labels
 
@@ -147,15 +195,30 @@ def compute_cluster_profiles(df, cluster_labels):
     for cid, grp in df_temp.groupby("cluster_id"):
         rec = {
             "cluster_id": cid,
-            "record_count": len(grp),
-            "percentage": round(len(grp) / len(df_temp) * 100, 2),
+            "sample_count": len(grp),
+            "proportion": round(len(grp) / len(df_temp) * 100, 2),
         }
         for feat in FEATURE_COLUMNS:
             rec[f"{feat}_mean"] = round(float(grp[feat].mean()), 3)
             rec[f"{feat}_std"] = round(float(grp[feat].std()), 3)
+
+        # Post-hoc risk-label distribution (descriptive only, does not affect clustering)
+        if "risk_label" in df.columns:
+            risk_counts = grp["risk_label"].value_counts()
+            total = len(grp)
+            for label in ["Low", "Medium", "High", "Critical"]:
+                count = risk_counts.get(label, 0)
+                rec[f"risk_{label.lower()}_count"] = count
+                rec[f"risk_{label.lower()}_pct"] = round(count / total * 100, 2)
+
         records.append(rec)
 
     return pd.DataFrame(records)
+
+
+def generate_cluster_profiles(df, cluster_labels):
+    """Generate cluster profiles. Alias for compute_cluster_profiles."""
+    return compute_cluster_profiles(df, cluster_labels)
 
 
 def generate_cluster_analysis_text(
@@ -213,8 +276,8 @@ def generate_cluster_analysis_text(
 
     for _, row in profiles_df.iterrows():
         cid = int(row["cluster_id"])
-        count = int(row["record_count"])
-        pct = row["percentage"]
+        count = int(row["sample_count"])
+        pct = row["proportion"]
         ui_mean = row["user_interaction_mean"]
         exp_mean = row["exploit_probability_mean"]
         c_mean = row["confidentiality_impact_mean"]
@@ -252,21 +315,49 @@ def generate_cluster_analysis_text(
     return out_file
 
 
+def save_kmeans_artifacts(
+    metrics_df,
+    profiles_df,
+    assignments,
+    output_dir=Path("artifacts/kmeans"),
+):
+    """Save all K-Means artifacts to disk.
+
+    Writes:
+        - k_selection_metrics.csv
+        - cluster_profiles.csv
+        - cluster_assignments.csv
+    """
+    out_dir = Path(output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    metrics_df.to_csv(out_dir / "k_selection_metrics.csv", index=False)
+    profiles_df.to_csv(out_dir / "cluster_profiles.csv", index=False)
+    assignments.to_csv(out_dir / "cluster_assignments.csv", index=False)
+
+    return out_dir
+
+
 def run_kmeans(
     data_path="data/processed/vulnerabilities_processed.csv",
     output_path="artifacts/kmeans/cluster_assignments.csv",
     n_clusters=None,
     random_state=42,
 ):
-    """Execute complete K-Means pipeline: candidate comparison, selection, profiling, and export.
+    """Execute complete K-Means pipeline: load, validate, candidate comparison,
+    selection, scaling, fitting, profiling, and export.
 
-    Preserves public interface while providing full cluster analysis deliverables.
+    Scaling behavior:
+        Features are standardized using sklearn StandardScaler fitted only on the
+        input dataset being clustered. No leakage from external data occurs.
+
+    Reproducibility:
+        A fixed random_state is used for K-Means initialization so that repeated
+        runs on the same input produce identical assignments and metrics.
     """
-    in_file = Path(data_path)
-    if not in_file.exists():
-        raise FileNotFoundError(f"Input data file not found: {data_path}")
+    df = load_processed_data(data_path)
+    validate_kmeans_input(df)
 
-    df = pd.read_csv(in_file)
     X = df[FEATURE_COLUMNS]
 
     # Standardize 7 security features
@@ -278,8 +369,6 @@ def run_kmeans(
 
     # 1. Compare candidate K values (K = 2 through 8)
     metrics_df = compare_k_values(X_scaled, k_range=range(2, 9), random_state=random_state)
-    metrics_csv_path = out_dir / "k_selection_metrics.csv"
-    metrics_df.to_csv(metrics_csv_path, index=False)
 
     # 2. Select best K (if not forced by caller)
     if n_clusters is None:
@@ -297,8 +386,6 @@ def run_kmeans(
 
     # 5. Compute and export cluster profiles
     profiles_df = compute_cluster_profiles(df, clusters)
-    profiles_csv_path = out_dir / "cluster_profiles.csv"
-    profiles_df.to_csv(profiles_csv_path, index=False)
 
     # 6. Generate textual cluster analysis report
     generate_cluster_analysis_text(
@@ -311,9 +398,29 @@ def run_kmeans(
         "system_id": df["system_id"],
         "cluster_id": clusters,
     })
+
+    # 8. Output validation
+    if len(assignments) != len(df):
+        raise ValueError("Cluster assignments row count does not match input.")
+    if not (assignments["vuln_id"].reset_index(drop=True).equals(df["vuln_id"].reset_index(drop=True))):
+        raise ValueError("vuln_id not preserved in assignments.")
+    if not (assignments["system_id"].reset_index(drop=True).equals(df["system_id"].reset_index(drop=True))):
+        raise ValueError("system_id not preserved in assignments.")
+    if not pd.api.types.is_integer_dtype(assignments["cluster_id"]):
+        raise ValueError("cluster_id is not integer-like.")
+    if assignments["cluster_id"].isnull().any():
+        raise ValueError("cluster_id contains missing values.")
+
+    # 9. Save artifacts
+    save_kmeans_artifacts(metrics_df, profiles_df, assignments, output_dir=out_dir)
     assignments.to_csv(Path(output_path), index=False)
 
     return assignments
+
+
+def run_kmeans_pipeline(*args, **kwargs):
+    """Alias for run_kmeans to match preferred public API."""
+    return run_kmeans(*args, **kwargs)
 
 
 if __name__ == "__main__":
