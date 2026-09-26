@@ -14,6 +14,9 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from src.finbank_simulation import run_finbank_simulation  # noqa: E402
+from src.finbank_env import load_finbank_systems  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -35,6 +38,7 @@ st.set_page_config(page_title="TraceWard", page_icon="🛡️", layout="wide")
 
 try:
     from dashboard.ui import (
+        _generate_attack_graph_dot,
         inject_dark_theme,
         render_attack_path_intelligence,
         render_remediation_priority_card,
@@ -291,6 +295,52 @@ def render_patch_plan(csp_result):
                 st.warning(f"Solver correctly identified infeasibility: {inf_res['message']}")
 
 
+def _build_remediation_explanation(task, result, systems):
+    system_id = task.get("system_id", "")
+    vuln_id = task.get("vuln_id", "")
+    priority = task.get("priority", "")
+    depends_on = task.get("depends_on", [])
+
+    system_info = systems.get(system_id, {})
+    internet_exposed = bool(system_info.get("internet_exposed", False))
+    criticality = system_info.get("criticality", 1)
+    is_critical_system = criticality >= 4
+
+    attack_path = result.attack_path.get("simulated_attack_path", [])
+    on_path = system_id in attack_path
+    affected = system_id in result.affected_systems
+    is_critical_asset = system_id in result.incident.get("critical_assets_affected", [])
+    is_entry = system_id == result.incident.get("entry_point")
+
+    reasons = []
+    if is_entry:
+        reasons.append("it is the simulated entry point")
+    if affected:
+        reasons.append("it is affected by the simulated incident")
+    if on_path:
+        reasons.append("it is located on the simulated attack route")
+    if is_critical_asset:
+        reasons.append("it is an important asset")
+    if is_critical_system:
+        reasons.append("it is a critical system")
+    if internet_exposed:
+        reasons.append("it is internet-facing")
+    if priority in ("High", "Critical"):
+        reasons.append("it has a high or critical vulnerability risk")
+    if depends_on:
+        reasons.append("it has dependencies with other remediation items")
+
+    if reasons:
+        if len(reasons) == 1:
+            reason_text = reasons[0]
+        elif len(reasons) == 2:
+            reason_text = " and ".join(reasons)
+        else:
+            reason_text = ", ".join(reasons[:-1]) + ", and " + reasons[-1]
+        return f"{system_id} is prioritized because {reason_text}."
+    return f"{system_id} is included in the remediation schedule ({vuln_id}, {priority} priority)."
+
+
 def render_what_if():
     st.header("What-If Scenario Simulation (System-Level Hardening)")
     st.caption(
@@ -368,6 +418,251 @@ def render_what_if():
                 st.dataframe(res["simulated_risk_df"], width="stretch", hide_index=True)
 
 
+def render_incident_simulation():
+    st.header("Incident Simulation")
+    st.caption(
+        "Explore a fictional FinBank security scenario end-to-end. "
+        "This simulation generates a hypothetical attack sequence, affected systems, estimated vulnerability risk, "
+        "a potential attack route, and a suggested remediation schedule."
+    )
+
+    scenario_options = {
+        "Customer Portal Compromise": "customer_portal_compromise",
+        "Employee Compromise": "employee_compromise",
+        "Remote Access Compromise": "remote_access_compromise",
+        "Backup Targeting": "backup_targeting",
+    }
+
+    selected_label = st.selectbox("Scenario", list(scenario_options.keys()))
+    scenario_id = scenario_options[selected_label]
+
+    run_btn = st.button("Run Simulation", type="primary")
+
+    if run_btn or "finbank_sim_result" in st.session_state:
+        if run_btn:
+            try:
+                with st.spinner("Running simulation..."):
+                    st.session_state["finbank_sim_result"] = run_finbank_simulation(scenario_id)
+            except Exception as e:
+                st.error(f"Simulation failed: {e}")
+                return
+
+        result = st.session_state.get("finbank_sim_result")
+        if result is None or result.scenario.get("scenario_id") != scenario_id:
+            return
+
+        st.subheader("Incident Overview")
+        incident_status = result.remediation_plan.get("status", "unknown")
+        if incident_status == "feasible":
+            st.success(f"Schedule status: {incident_status}")
+        else:
+            st.error(f"Schedule status: {incident_status}")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Entry Point", result.incident.get("entry_point", "—"))
+            st.metric("Affected Systems", ", ".join(result.affected_systems) if result.affected_systems else "—")
+        with col2:
+            st.metric("Related Vulnerabilities", len(result.related_vulnerabilities))
+            st.metric("Important Assets Affected", ", ".join(result.incident.get("critical_assets_affected", [])) or "—")
+
+        with st.expander("Technical Details"):
+            st.write("**Scenario:**", result.scenario.get("name", selected_label))
+            st.write("**Incident ID:**", result.incident.get("incident_id", "—"))
+            st.write("**Event Count:**", result.incident.get("event_count", 0))
+            st.write("**Potential Attack Route:**", " → ".join(result.attack_path.get("simulated_attack_path", [])))
+            st.write("**Route Difficulty Score:**", result.attack_path.get("total_risk_cost", "—"))
+
+            st.write("**Affected Systems:**")
+            for system_id in result.affected_systems:
+                st.write(f"- {system_id}")
+
+            st.write("**Related Vulnerabilities:**")
+            for vuln_id in result.related_vulnerabilities:
+                st.write(f"- {vuln_id}")
+
+        st.markdown("---")
+        st.subheader("Simulated Event Timeline")
+        st.caption(
+            "This timeline shows a fictional, deterministic sequence for demonstration only. "
+            "It does not represent real security incidents, breaches, or malicious activity."
+        )
+
+        timeline_events = result.events or []
+        if timeline_events:
+            for idx, event in enumerate(timeline_events, start=1):
+                event_type = event.get("event_type", "unknown")
+                event_type_label = event_type.replace("_", " ").title()
+                description = event.get("description", "")
+                target = event.get("target", "—")
+
+                st.markdown(
+                    f"**{idx}.** {event_type_label} — **{target}**  "
+                    f"<span style='color: #9ca3af; font-size: 0.85rem;'>({description})</span>",
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.caption("No timeline events available for this scenario.")
+
+        st.markdown("---")
+        st.subheader("Hypothetical Remediation Impact")
+        st.caption(
+            "This is a planning exercise only. "
+            "It does not guarantee that the selected remediation will produce the exact modeled risk reduction or route change in a real environment. "
+            "The simulation runs on an isolated copy of the current risk and network state."
+        )
+
+        schedule = result.remediation_plan.get("schedule", [])
+        if schedule:
+            task_options = {
+                f"{task['vuln_id']} on {task['system_id']} ({task['priority']}) — {task['team']}": task
+                for task in schedule
+            }
+            selected_task_label = st.selectbox(
+                "Select a remediation action to simulate",
+                list(task_options.keys()),
+            )
+            selected_task = task_options[selected_task_label]
+            target_system = selected_task["system_id"]
+
+            run_what_if_btn = st.button("Run Hypothetical Simulation", type="primary")
+
+            if run_what_if_btn or st.session_state.get("finbank_what_if_result"):
+                if run_what_if_btn:
+                    try:
+                        with st.spinner("Running hypothetical simulation..."):
+                            st.session_state["finbank_what_if_result"] = simulate_patch_impact(
+                                target_system=target_system,
+                                risk_reduction_factor=0.5,
+                                start_node="INTERNET",
+                                goal_node="DB01",
+                            )
+                    except Exception as e:
+                        st.error(f"What-if simulation failed: {e}")
+                        st.session_state.pop("finbank_what_if_result", None)
+
+                what_if_res = st.session_state.get("finbank_what_if_result")
+                if what_if_res and what_if_res.get("status") == "success":
+                    baseline_risk = what_if_res["baseline"]["system_risk"]
+                    simulated_risk = what_if_res["simulated"]["system_risk"]
+                    baseline_path = what_if_res["baseline"]["attack_path"]
+                    simulated_path = what_if_res["simulated"]["attack_path"]
+
+                    st.markdown("**BEFORE**")
+                    b1, b2, b3 = st.columns(3)
+                    with b1:
+                        st.metric("Affected Systems", ", ".join(result.affected_systems) if result.affected_systems else "—")
+                    with b2:
+                        st.metric("Estimated System Risk", f"{baseline_risk['normalized_risk']:.3f}", help="Normalized risk score for the target system before patching.")
+                    with b3:
+                        st.metric("Potential Attack Route", " → ".join(baseline_path))
+
+                    st.markdown("**AFTER**")
+                    a1, a2, a3 = st.columns(3)
+                    with a1:
+                        st.metric("Affected Systems", ", ".join(result.affected_systems) if result.affected_systems else "—")
+                    with a2:
+                        delta = what_if_res["deltas"]["risk_reduction"]
+                        st.metric("Estimated System Risk", f"{simulated_risk['normalized_risk']:.3f}", f"-{delta:.3f}", delta_color="inverse")
+                    with a3:
+                        path_changed = what_if_res["deltas"]["path_diverted"]
+                        path_label = "Rerouted" if path_changed else "Maintained (Hardened)"
+                        st.metric("Potential Attack Route", path_label)
+
+                    st.caption(
+                        f"**Hypothetical route:** {' → '.join(simulated_path)} "
+                        f"(difficulty {what_if_res['simulated']['path_cost']:.2f})"
+                    )
+
+                    with st.expander("Technical Details"):
+                        st.write("**Explanation:**", what_if_res.get("explanation", ""))
+                        st.write("**Target System:**", what_if_res.get("target_system", ""))
+                        st.write("**Simulated Risk Reduction:**", f"{what_if_res.get('risk_reduction_factor', 0.5):.0%}")
+                        st.write("**Original Route Difficulty:**", what_if_res["baseline"]["path_cost"])
+                        st.write("**Updated Route Difficulty:**", what_if_res["simulated"]["path_cost"])
+                        st.write("**Difficulty Increase:**", what_if_res["deltas"]["path_cost_increase"])
+        else:
+            st.caption("No remediation actions available to simulate.")
+
+        st.markdown("---")
+        st.subheader("Remediation Priority Explanations")
+        st.caption(
+            "Plain-language reasons why each high-priority remediation item appears in this schedule. "
+            "These explanations are based on deterministic rules applied to the simulation data."
+        )
+
+        schedule = result.remediation_plan.get("schedule", [])
+        if schedule:
+            high_priority_tasks = [
+                task for task in schedule if task.get("priority") in ("Critical", "High")
+            ]
+            if high_priority_tasks:
+                systems = load_finbank_systems()
+                for task in high_priority_tasks:
+                    explanation = _build_remediation_explanation(task, result, systems)
+                    st.markdown(f"- {explanation}")
+            else:
+                st.caption("No high-priority remediation items to explain.")
+        else:
+            st.caption("No remediation schedule available.")
+
+        st.markdown("---")
+        st.subheader("Potential Attack Route Map")
+        attack_path_list = result.attack_path.get("simulated_attack_path", [])
+        if attack_path_list:
+            try:
+                dot_graph = _generate_attack_graph_dot(attack_path_list)
+                st.graphviz_chart(dot_graph)
+            except Exception as e:
+                st.caption(f"Visualization unavailable: {e}")
+
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            st.metric("Route Length", f"{len(attack_path_list) - 1} Hops" if len(attack_path_list) > 1 else "0 Hops")
+        with m2:
+            st.metric("Starting Point", result.attack_path.get("entry_point", result.incident.get("entry_point", "—")))
+        with m3:
+            st.metric("Destination Asset", result.attack_path.get("target_critical_asset", "—"))
+        with m4:
+            st.metric("Important Assets", ", ".join(result.incident.get("critical_assets_affected", [])) or "—")
+
+        path_systems = [s for s in attack_path_list if s != "INTERNET"]
+        st.markdown("**Important Systems on This Route:**")
+        if path_systems:
+            critical_assets_on_path = [
+                s for s in path_systems
+                if s in result.incident.get("critical_assets_affected", [])
+            ]
+            if critical_assets_on_path:
+                for system_id in critical_assets_on_path:
+                    st.write(f"- ⚠️ {system_id}")
+            else:
+                st.caption("No important systems flagged on this route.")
+
+        inventory_path = Path("artifacts/finbank/finbank_vulnerability_inventory.csv")
+        if inventory_path.exists():
+            try:
+                inventory_df = pd.read_csv(inventory_path)
+                path_vulns = inventory_df[inventory_df["system_id"].isin(path_systems)]
+                if not path_vulns.empty:
+                    st.markdown("**Vulnerabilities on Route Systems:**")
+                    summary = (
+                        path_vulns.groupby("system_id")
+                        .agg(
+                            vulnerability_count=("vuln_id", "count"),
+                            vuln_ids=("vuln_id", lambda x: ", ".join(sorted(x))),
+                        )
+                        .reset_index()
+                    )
+                    st.dataframe(summary, width="stretch", hide_index=True)
+                else:
+                    st.caption("No vulnerability inventory data found for systems on this route.")
+            except Exception as e:
+                st.caption(f"Vulnerability lookup unavailable: {e}")
+        else:
+            st.caption("Run the FinBank simulation to populate the vulnerability inventory for systems on this route.")
+
+
 def main():
     st.title("🛡️ TraceWard")
     st.caption("Cyber Risk Analysis • Attack Path Detection • Smart Remediation Planning")
@@ -385,6 +680,7 @@ def main():
             "Attack Graph/Path",
             "Patch Plan",
             "What-If Analysis",
+            "Incident Simulation",
         ]
     )
 
@@ -400,6 +696,8 @@ def main():
         render_patch_plan(csp_result)
     with tabs[5]:
         render_what_if()
+    with tabs[6]:
+        render_incident_simulation()
 
 
 if __name__ == "__main__":

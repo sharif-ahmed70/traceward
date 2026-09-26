@@ -117,12 +117,12 @@ def simulate_patch_impact(
             impact_summary = (
                 f"Patching {target_system} increased defensive resistance along the primary attack path, "
                 f"forcing the adversary onto an alternate route ({' -> '.join(sim_path_result['path'])}) "
-                f"with an increased traversal cost of +{cost_delta:+.2f}."
+                 f"with an increased traversal cost of +{cost_delta:.2f}."
             )
         else:
             impact_summary = (
                 f"Patching {target_system} hardened the node on the active attack path, "
-                f"increasing adversary traversal cost by +{cost_delta:+.2f} (from {baseline_path_result['total_cost']} "
+                f"increasing adversary traversal cost by +{cost_delta:.2f} (from {baseline_path_result['total_cost']} "
                 f"to {sim_path_result['total_cost']})."
             )
     else:

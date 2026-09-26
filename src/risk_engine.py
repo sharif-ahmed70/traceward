@@ -120,8 +120,15 @@ def summarize_system_risk(df):
 def build_system_risk_summary(
     input_path="artifacts/knn/predictions.csv",
     output_path="artifacts/risk/system_risk_summary.csv",
+    predictions_path=None,
 ):
-    """Read a predictions CSV, compute system risk summary, and save to CSV without index."""
+    """Read a predictions CSV, compute system risk summary, and save to CSV without index.
+
+    If predictions_path is provided, it takes precedence over input_path.
+    """
+    if predictions_path is not None:
+        input_path = predictions_path
+
     df = pd.read_csv(input_path, keep_default_na=False)
     summary_df = summarize_system_risk(df)
 
