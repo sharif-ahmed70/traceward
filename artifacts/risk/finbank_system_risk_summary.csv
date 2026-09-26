@@ -1,0 +1,8 @@
+system_id,vulnerability_count,highest_risk,average_risk_score,normalized_risk,critical_count,high_or_critical_count
+BACKUP01,165,Critical,2.618,0.654,53,87
+WEB01,186,Critical,2.543,0.636,49,96
+EMP01,153,Critical,2.523,0.631,50,78
+AUTH01,205,Critical,2.522,0.63,54,110
+APP01,159,Critical,2.484,0.621,40,86
+VPN01,162,Critical,2.451,0.613,43,77
+DB01,170,Critical,2.429,0.607,41,77

@@ -53,7 +53,7 @@ TraceWard is an intelligent defensive cybersecurity decision-support framework d
 ```powershell
 .venv\Scripts\python.exe -m unittest discover -v -s tests -p "test_*.py"
 ```
-*(Executes all 88 automated unit and integration tests across 8 test modules).*
+*(Executes all 430 automated unit and integration tests).*
 
 ### Step 3: Launch the Interactive Dashboard
 ```powershell
@@ -191,14 +191,16 @@ This section provides a structured 5–7 minute demonstration covering both the 
 | **Step 3** (1.5 min) | **K-Means Cluster Analysis** | `.venv\Scripts\python.exe src/kmeans_clustering.py` | 1. Open `artifacts/kmeans/elbow_plot.png` showing the inertia elbow at $K=4$ ($D^2=189.30$).<br>2. Open `artifacts/kmeans/silhouette_plot.png` (explaining modest 0.14-0.18 scores from discrete ordinal space).<br>3. Open `artifacts/kmeans/cluster_analysis.txt` to explain the 4 measured vulnerability profiles based on User Interaction (None vs. Required) and Exploitability/Impact levels. | `artifacts/kmeans/elbow_plot.png`<br>`artifacts/kmeans/cluster_profiles.csv`<br>`artifacts/kmeans/cluster_analysis.txt` |
 | **Step 4** (1.5 min) | **KNN Model Training & Evaluation** | `.venv\Scripts\python.exe src/knn_classifier.py` | 1. Show 5-Fold Cross-Validation table selecting $K=3$ (CV Acc: 72.81%).<br>2. Open `artifacts/knn/confusion_matrix.png`.<br>3. Review `artifacts/knn/evaluation_report.txt` showing held-out test accuracy of 73.75%, precision 0.7288, recall 0.7375, F1 0.7298. | `artifacts/knn/k_selection_cv.csv`<br>`artifacts/knn/confusion_matrix.png`<br>`artifacts/knn/evaluation_report.txt` |
 | **Step 5** (1 min) | **A* Search, CSP & Explainability** | `.venv\Scripts\python.exe main.py` | 1. Show A* critical path output (`INTERNET -> WEB01 -> APP01 -> DB01`, Cost: 4.08).<br>2. Show CSP patch schedule (5 tasks scheduled, 235 pending in backlog).<br>3. Show Explainability sample deconstructing Exploitability vs. Impact. | `artifacts/astar/attack_path.json`<br>`artifacts/csp/patch_schedule.json` |
-| **Step 6** (1 min) | **Automated Test Verification** | `.venv\Scripts\python.exe -m unittest discover -v -s tests -p "test_*.py"` | Show that all **88 automated unit and integration tests** pass with zero errors across all 8 test suites. | `tests/` |
+| **Step 6** (1 min) | **FinBank Incident Simulation** | `streamlit run dashboard/app.py` → **Incident Simulation** tab | 1. Select a scenario (e.g., Customer Portal Compromise) and run the simulation.<br>2. Show the fictional attack timeline, affected systems, potential attack route map, and remediation schedule.<br>3. Explain that this is a deterministic, fictional demonstration for pipeline validation. | `docs/FINBANK_SIMULATION.md`<br>`dashboard/app.py` |
+| **Step 6** (1 min) | **Automated Test Verification** | `.venv\Scripts\python.exe -m unittest discover -v -s tests -p "test_*.py"` | Show that all **430 automated unit and integration tests** pass with zero errors across all 18 test suites. | `tests/` |
 
 ### 2. Standalone Fallback Procedure (If GUI / Web Server is Unavailable)
 If Streamlit or a browser cannot be launched during the viva, all artifacts are pre-generated, static, and inspectable:
 * Open `artifacts/kmeans/elbow_plot.png` and `artifacts/knn/confusion_matrix.png` in Windows Photos.
 * Open `artifacts/kmeans/cluster_analysis.txt` and `artifacts/knn/evaluation_report.txt` in Notepad / VS Code.
 * Inspect `artifacts/astar/attack_path.json` and `artifacts/csp/patch_schedule.json`.
-* Show the automated test output in the terminal (`Ran 88 tests in 4.8s - OK`).
+* Inspect `artifacts/finbank/scenarios/`, `artifacts/finbank/events/`, `artifacts/finbank/incidents/`, `artifacts/finbank/attack_paths/`, and `artifacts/finbank/remediation_plans/` for the FinBank incident simulation outputs.
+* Show the automated test output in the terminal (`Ran 430 tests in ~2m - OK`).
 
 ---
 
@@ -222,7 +224,7 @@ If Streamlit or a browser cannot be launched during the viva, all artifacts are 
 > *Backtracking CSP সলভার ব্যবহার করে আমরা টিম স্পেশালাইজেশন, ক্যাপাসিটি এবং ডিফেন্সিভ ডিপেনডেন্সি (Perimeter fixes before Internal fixes) বজায় রেখে ফিজিবল প্যাচ শিডিউল তৈরি করেছি। সাথে আমাদের Structured Explainability Engine প্রতিটি সিদ্ধান্তের পেছনে Exploitability বনাম Impact সাবস্কোর এবং স্পষ্ট ব্যাখ্যা প্রদান করে।*
 >
 > ***৬. Test Verification:***  
-> *আমাদের সিস্টেমের সমস্ত **৮৮টি স্বয়ংক্রিয় ইউনিট এবং ইন্টিগ্রেশন টেস্ট (৮৮/৮৮ টেস্ট)** সম্পূর্ণ সফলভাবে পাস করেছে। ধন্যবাদ ম্যাম।"*
+> *আমাদের সিস্টেমের সমস্ত **৪৩০টি স্বয়ংক্রিয় ইউনিট এবং ইন্টিগ্রেশন টেস্ট (৪৩০/৪৩০ টেস্ট)** সম্পূর্ণ সফলভাবে পাস করেছে। ধন্যবাদ ম্যাম।"*
 
 ---
 

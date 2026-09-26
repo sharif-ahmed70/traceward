@@ -1,7 +1,7 @@
 # TraceWard: Intelligent Cybersecurity Risk Analysis, Attack Path Detection & Smart Remediation Planning
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Tests Passing](https://img.shields.io/badge/tests-88%20passed-success.svg)](tests/)
+[![Tests Passing](https://img.shields.io/badge/tests-430%20passed-success.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/architecture-modular%20pipeline-brightgreen.svg)](docs/MODULE_CONTRACTS.md)
 [![UI](https://img.shields.io/badge/dashboard-Streamlit-red.svg)](dashboard/app.py)
 
@@ -59,7 +59,7 @@ TraceWard operates as a cohesive, deterministic 8-stage pipeline where each modu
     9. Structured Explainability Engine (Exploitability vs. CIA Impact attribution)
                            │
                            ▼
-   10. Interactive Streamlit Dashboard (6 comprehensive operational tabs)
+    10. Interactive Streamlit Dashboard (7 comprehensive operational tabs)
 ```
 
 ---
@@ -113,7 +113,7 @@ TraceWard operates as a cohesive, deterministic 8-stage pipeline where each modu
 | **Web Dashboard** | Streamlit | Real-time multi-tab cybersecurity command center |
 | **Visualization** | Graphviz / Matplotlib | Directed attack graphs and ML evaluation curves (Elbow, Confusion Matrix) |
 | **Serialization** | Joblib / JSON / CSV | Contract-compliant artifact persistence |
-| **Testing** | Python `unittest` | Automated regression test suite (88 tests) |
+| **Testing** | Python `unittest` | Automated regression test suite (430 tests) |
 
 ---
 
@@ -128,8 +128,8 @@ TraceWard operates as a cohesive, deterministic 8-stage pipeline where each modu
 | **Structural Clusters** | **4 clusters ($K=4$)** | Discrete second difference elbow ($D^2=189.30$) |
 | **Critical Attack Path Cost** | **4.08 (3 hops)** | `artifacts/astar/attack_path.json` |
 | **Scheduled Tasks vs. Backlog** | **5 scheduled / 235 backlog** | `artifacts/csp/patch_schedule.json` |
-| **Automated Test Coverage** | **88 passed (0 errors)** | Full test suite across 8 modules |
-| **Dashboard Navigation** | **6 interactive tabs** | `dashboard/app.py` |
+| **Automated Test Coverage** | **430 passed (0 errors)** | Full test suite across 18 modules |
+| **Dashboard Navigation** | **7 interactive tabs** | `dashboard/app.py` |
 
 ---
 
@@ -152,7 +152,8 @@ traceward/
 │   └── ui.py                   # Cyber command-center design system & Graphviz visualizer
 ├── docs/
 │   ├── DATA_SCHEMA.md          # Formal data schema definitions
-│   └── MODULE_CONTRACTS.md     # Module interface and contract specifications
+│   ├── FINBANK_SIMULATION.md   # FinBank incident simulation documentation
+│   ├── MODULE_CONTRACTS.md     # Module interface and contract specifications
 ├── src/
 │   ├── astar_search.py         # A* risk-aware shortest path search
 │   ├── csp_solver.py           # Backtracking Constraint Satisfaction Problem solver
@@ -162,10 +163,27 @@ traceward/
 │   ├── knn_classifier.py       # Supervised KNN risk classifier with Stratified 5-Fold CV
 │   ├── preprocessing.py        # Ordinal encoding & feature engineering
 │   ├── risk_engine.py          # Asset risk calculation & host-level aggregation
-│   └── what_if_simulation.py   # Isolated system hardening simulator
-├── tests/                      # Automated unit and integration test suites (88 tests)
+│   ├── finbank_env.py          # FinBank environment configuration
+│   ├── finbank_assignment.py   # Deterministic vulnerability inventory assignment
+│   ├── finbank_simulation.py   # Unified FinBank simulation pipeline
+│   ├── finbank_network.py      # FinBank topology graph construction
+│   ├── finbank_astar_integration.py  # FinBank A* attack path analysis
+│   ├── finbank_csp_planner.py  # FinBank CSP remediation planning
+│   ├── what_if_simulation.py   # Isolated system hardening simulator
+├── tests/                      # Automated unit and integration test suites (430 tests)
 │   ├── test_explainability.py
 │   ├── test_foundation_integration.py
+│   ├── test_finbank_assignment.py
+│   ├── test_finbank_astar_integration.py
+│   ├── test_finbank_comprehensive.py
+│   ├── test_finbank_csp_planner.py
+│   ├── test_finbank_env.py
+│   ├── test_finbank_incident_predictor.py
+│   ├── test_finbank_network.py
+│   ├── test_finbank_predictor.py
+│   ├── test_finbank_scenarios.py
+│   ├── test_finbank_simulation.py
+│   ├── test_finbank_simulator.py
 │   ├── test_kmeans_clustering.py
 │   ├── test_knn_classifier.py
 │   ├── test_member5.py
@@ -210,7 +228,7 @@ Verify module contracts, zero data leakage, and system integrity:
 ```powershell
 python -m unittest discover -v -s tests -p "test_*.py"
 ```
-*(Runs all 88 unit and integration tests across 8 test suites).*
+*(Runs all 430 unit and integration tests across 18 test suites).*
 
 ### Step 4: Launch the Interactive Dashboard
 Start the local Streamlit command center:
@@ -230,6 +248,7 @@ streamlit run dashboard/app.py
 4. **Attack Graph / Path**: Renders the directed topology graph with the critical A* corridor highlighted in crimson, accompanied by Kill Chain stage progression and threat details.
 5. **Patch Plan**: Presents the feasible CSP maintenance schedule, backlog statistics, explainable justification cards, and an interactive **Infeasibility Simulation** test.
 6. **What-If Scenario Simulation**: Empowers security leads to model the defensive traversal friction gain from hardening any enterprise system.
+7. **Incident Simulation**: Runs deterministic FinBank attack scenarios end-to-end, producing fictional attack sequences, affected systems, estimated vulnerability risk, potential attack routes, and suggested remediation schedules.
 
 ---
 
