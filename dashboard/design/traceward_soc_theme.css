@@ -1,0 +1,37 @@
+/* TraceWard SOC Command Center Design Foundation */
+:root {
+  --tw-bg: #070b14;
+  --tw-panel: rgba(18, 27, 45, 0.78);
+  --tw-border: rgba(148, 163, 184, 0.18);
+  --tw-text: #e5e7eb;
+  --tw-muted: #94a3b8;
+  --tw-accent: #22d3ee;
+  --tw-danger: #ef4444;
+  --tw-success: #22c55e;
+}
+
+.tw-dashboard {
+  background: var(--tw-bg);
+  color: var(--tw-text);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.tw-panel {
+  background: var(--tw-panel);
+  border: 1px solid var(--tw-border);
+  border-radius: 14px;
+  backdrop-filter: blur(14px);
+  padding: 18px;
+}
+
+.tw-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.tw-grid {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+}
