@@ -27,6 +27,14 @@ from dashboard.overview_components import (
     render_smart_remediation_queue,
     render_detection_defense_status,
     render_operational_studios,
+    render_campus_asset_explorer,
+    render_faculty_demo_guide,
+)
+from dashboard.asset_metadata import (
+    get_asset,
+    get_asset_name,
+    format_asset_label,
+    get_system_business_impact,
 )
 
 
@@ -180,7 +188,9 @@ def inject_theme(theme_mode: str = "Dark") -> None:
     }}
 
     /* Hide native radio circles in sidebar */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child {{
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child,
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label svg,
+    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] input[type="radio"] {{
         display: none !important;
     }}
 
@@ -278,14 +288,17 @@ def inject_theme(theme_mode: str = "Dark") -> None:
     }}
 
     /* Top Header theme pill button */
+    div[data-testid="column"]:has(button[key="soc_theme_toggle_btn"]) button,
+    button[key="soc_theme_toggle_btn"],
     button[data-testid="baseButton-secondary"]:has(> div:has(> p:contains("Dark"))),
     button[data-testid="baseButton-secondary"]:has(> div:has(> p:contains("Light"))) {{
         border-radius: 9999px !important;
-        padding: 0.3rem 0.65rem !important;
+        padding: 0.35rem 0.65rem !important;
         font-size: 0.72rem !important;
         background: var(--tw-bg-surface) !important;
         border: 1px solid var(--tw-border) !important;
         color: var(--tw-text-primary) !important;
+        box-shadow: none !important;
     }}
 
     /* Dataframe and Tables */
@@ -449,14 +462,14 @@ def render_sidebar_navigation() -> str:
         render_html(
             """
             <div style="padding: 0.75rem; border-radius: 0.5rem; background: var(--tw-bg-surface); border: 1px solid var(--tw-border);">
-                <div style="font-size: 0.68rem; color: var(--tw-text-secondary); text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: 0.05em;">SYSTEM STATUS</div>
+                <div style="font-size: 0.68rem; color: var(--tw-text-secondary); text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: 0.05em;">CAMPUS SOC STATUS</div>
                 <div style="font-size: 0.78rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
                     <span style="color: var(--tw-text-secondary); display: flex; align-items: center; gap: 0.3rem;">🖥️ Monitored Hosts</span>
                     <strong style="color: var(--tw-text-primary);">8</strong>
                 </div>
                 <div style="font-size: 0.78rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
                     <span style="color: var(--tw-text-secondary); display: flex; align-items: center; gap: 0.3rem;">🎯 Crown Jewel</span>
-                    <strong style="color: var(--tw-text-primary);">DB01</strong>
+                    <strong style="color: var(--tw-text-primary);" title="Student Academic Database">DB01 (Student DB)</strong>
                 </div>
                 <div style="font-size: 0.78rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
                     <span style="color: var(--tw-text-secondary); display: flex; align-items: center; gap: 0.3rem;">⚙️ Pipeline Status</span>
@@ -464,7 +477,7 @@ def render_sidebar_navigation() -> str:
                 </div>
                 <div style="font-size: 0.78rem; display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: var(--tw-text-secondary); display: flex; align-items: center; gap: 0.3rem;">🌐 Environment</span>
-                    <strong style="color: #38bdf8;">FinBank</strong>
+                    <strong style="color: #38bdf8;" title="United International University — Simulated Digital Campus">UIU Campus</strong>
                 </div>
             </div>
             """
@@ -2038,7 +2051,7 @@ def render_attack_path_intelligence(attack_path_info: dict[str, Any], is_mock: b
 
             node_id = node.get("node_id", "")
 
-            name = node.get("name", node_id)
+            name = get_asset_name(node_id)
 
             phase = node.get("phase", "")
 
@@ -2201,23 +2214,15 @@ def render_attack_path_intelligence(attack_path_info: dict[str, Any], is_mock: b
         node_records = []
 
         for n in path_nodes:
-
+            nid = n.get("node_id", "")
             node_records.append({
-
-                "System ID": n.get("node_id", ""),
-
-                "Host Name": n.get("name", ""),
-
+                "System ID": nid,
+                "Campus Asset Name": get_asset_name(nid),
                 "Kill-Chain Phase": n.get("phase", ""),
-
                 "Criticality": n.get("criticality_label", ""),
-
                 "Normalized Risk": f"{n.get('risk_score', 0.0):.3f}",
-
                 "Step Traversal Cost": f"{n.get('step_cost', 0.0):.2f}",
-
                 "Adversary Traversal Justification": n.get("risk_reason", ""),
-
             })
 
         st.dataframe(pd.DataFrame(node_records), width="stretch", hide_index=True)
@@ -2289,3 +2294,13 @@ def render_modern_overview(
 
     # 4. Operational Studios (4 Columns, 100% Clickable Glass Cards)
     render_operational_studios()
+
+    render_html('<div style="height: 0.5rem;"></div>')
+
+    # 5. Campus Digital Asset Directory & Risk Profiler (Search, Filter & Profile Inspector)
+    render_campus_asset_explorer(risk_df)
+
+    render_html('<div style="height: 0.5rem;"></div>')
+
+    # 6. Faculty Demonstration Scenario Walkthrough Guide
+    render_faculty_demo_guide()

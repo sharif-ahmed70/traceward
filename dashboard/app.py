@@ -97,8 +97,17 @@ try:
     )
 
 except Exception:
-
     pass
+
+from dashboard.asset_metadata import (
+    CAMPUS_ASSETS,
+    UNIVERSITY_INFO,
+    format_asset_label,
+    get_all_assets,
+    get_asset,
+    get_asset_name,
+    get_system_business_impact,
+)
 
 
 
@@ -269,79 +278,76 @@ def render_overview(risk_df, csp_result, attack_path_info=None, is_mock_risk=Fal
 
 
 def render_clusters(clusters_df, is_mock):
-
     st.header("Clusters")
-
     tag = "Mock K-Means output" if is_mock else "Live K-Means cluster assignments"
-
     st.caption(f"{tag}. Cluster IDs represent structural profiles and are not severity labels.")
 
-    st.dataframe(clusters_df.head(100), width="stretch", hide_index=True)
+    display_clusters = clusters_df.head(100).copy()
+    if "system_id" in display_clusters.columns:
+        display_clusters.insert(2, "campus_asset", display_clusters["system_id"].apply(lambda sid: get_asset_name(sid, short=True)))
+    st.dataframe(display_clusters, width="stretch", hide_index=True)
 
     summary = (
-
         clusters_df.groupby("cluster_id")
-
         .agg(vulnerabilities=("vuln_id", "count"), systems=("system_id", "nunique"))
-
         .reset_index()
-
     )
-
     st.subheader("Cluster summary")
-
     st.dataframe(summary, width="stretch", hide_index=True)
 
 
-
-
-
 def render_risk_prediction(risk_df, clusters_df, is_mock):
-
     st.header("Risk Prediction")
-
     tag = "Mock KNN output" if is_mock else "Live KNN predictions"
-
     st.caption(f"{tag} using the agreed 7-feature security contract.")
 
-    st.dataframe(risk_df.head(100), width="stretch", hide_index=True)
-
-
+    display_risk = risk_df.head(100).copy()
+    if "system_id" in display_risk.columns:
+        display_risk.insert(2, "campus_asset", display_risk["system_id"].apply(lambda sid: get_asset_name(sid, short=True)))
+    st.dataframe(display_risk, width="stretch", hide_index=True)
 
     vuln_list = risk_df["vuln_id"].tolist()
-
     if vuln_list:
-
-        selected = st.selectbox("Explain vulnerability", vuln_list[:50])
-
+        selected = st.selectbox(
+            "Explain vulnerability",
+            vuln_list[:50],
+            format_func=lambda vid: f"{vid} — {risk_df.loc[risk_df['vuln_id'] == vid, 'system_id'].values[0]} ({get_asset_name(risk_df.loc[risk_df['vuln_id'] == vid, 'system_id'].values[0], short=True)})",
+        )
         row = risk_df.loc[risk_df["vuln_id"] == selected].iloc[0]
-
         cluster_matches = clusters_df.loc[clusters_df["vuln_id"] == selected]
-
         cluster_id = int(cluster_matches.iloc[0]["cluster_id"]) if not cluster_matches.empty else None
 
-
-
         explanation = explain_vulnerability(
-
             row["vuln_id"],
-
             row["system_id"],
-
             row["predicted_risk"],
-
             cluster_id=cluster_id,
+        )
 
+        sys_id = row["system_id"]
+        asset_info = get_asset(sys_id)
+        st.markdown(
+            f"""
+            <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 0.75rem 1rem; margin: 0.5rem 0 0.85rem 0;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                    <strong style="color: #60a5fa; font-size: 0.95rem;">🏛️ Targeted Campus Asset: {sys_id} — {asset_info['name']}</strong>
+                    <span style="font-size: 0.75rem; color: #94a3b8;">Department: {asset_info['owner']}</span>
+                </div>
+                <div style="font-size: 0.82rem; color: var(--tw-text-primary); margin-top: 0.35rem;">
+                    <strong>Asset Purpose:</strong> {asset_info['purpose']}
+                </div>
+                <div style="font-size: 0.82rem; color: #f87171; margin-top: 0.35rem;">
+                    <strong>🚨 University Business Impact:</strong> {asset_info['business_impact']}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
         st.write(explanation["summary"])
-
         for factor in explanation["evidence"]:
-
             st.write(f"- {factor}")
-
         st.caption(explanation["cluster_context"])
-
         render_structured_explanation_card(explanation)
 
 
@@ -386,7 +392,11 @@ def render_risk_prediction(risk_df, clusters_df, is_mock):
 
             exp_prob = st.slider("Exploit Probability", min_value=0.0, max_value=1.0, value=0.85, step=0.05)
 
-            target_sys = st.selectbox("Target System", ["WEB01", "APP01", "AUTH01", "VPN01", "EMP01", "DB01", "BACKUP01"])
+            target_sys = st.selectbox(
+                "Target System",
+                ["WEB01", "APP01", "AUTH01", "VPN01", "EMP01", "DB01", "BACKUP01"],
+                format_func=lambda sid: f"{sid} — {get_asset_name(sid, short=True)}",
+            )
 
             submit_pred = st.form_submit_button("Predict Risk Class")
 
@@ -535,37 +545,42 @@ def render_patch_plan(csp_result):
 
 
     schedule = pd.DataFrame(csp_result["schedule"])
+    display_sched = schedule.copy()
+    if not display_sched.empty and "system_id" in display_sched.columns:
+        display_sched.insert(2, "campus_asset", display_sched["system_id"].apply(lambda sid: get_asset_name(sid, short=True)))
+    st.dataframe(display_sched, width="stretch", hide_index=True)
 
-    st.dataframe(schedule, width="stretch", hide_index=True)
-
-
-
-    selected = st.selectbox("Explain patch task", schedule["vuln_id"].tolist(), key="patch_task")
-
+    selected = st.selectbox(
+        "Explain patch task",
+        schedule["vuln_id"].tolist(),
+        format_func=lambda vid: f"{vid} — {schedule.loc[schedule['vuln_id'] == vid, 'system_id'].values[0]} ({get_asset_name(schedule.loc[schedule['vuln_id'] == vid, 'system_id'].values[0], short=True)})",
+        key="patch_task",
+    )
     row = schedule.loc[schedule["vuln_id"] == selected].iloc[0]
-
     task_dict = row.to_dict()
-
     explanation = explain_patch_priority(
-
         row["vuln_id"],
-
         row["system_id"],
-
         row["priority"],
-
         reason="Priority comes from upstream risk rating and attack-path alignment.",
-
         scheduled_slot=row["time_slot"],
-
         team=row["team"],
-
         depends_on=task_dict.get("depends_on", []),
+    )
 
+    sys_id = row["system_id"]
+    asset_info = get_asset(sys_id)
+    st.markdown(
+        f"""
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 0.65rem 0.85rem; margin: 0.5rem 0 0.75rem 0; font-size: 0.8rem;">
+            <span style="color: #34d399; font-weight: 700;">🛡️ Remediation Target:</span> <strong>{sys_id} — {asset_info['name']}</strong> ({asset_info['owner']})<br/>
+            <span style="color: #fca5a5;"><strong>Campus Business Risk if Deferred:</strong> {asset_info['business_impact']}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     st.write(explanation["summary"])
-
     render_remediation_priority_card(explanation, task_dict)
 
 
@@ -741,21 +756,37 @@ def render_what_if():
 
 
     col1, col2 = st.columns(2)
-
     with col1:
-
-        target_sys = st.selectbox("Target System to Harden / Remediate", system_list, index=0)
-
+        target_sys = st.selectbox(
+            "Target System to Harden / Remediate",
+            system_list,
+            index=0,
+            format_func=lambda sid: f"{sid} — {get_asset_name(sid, short=True)}",
+        )
     with col2:
-
         reduction = st.slider("System Risk Reduction (% Hardening)", min_value=10, max_value=90, value=50, step=10)
 
-
+    asset_meta = get_asset(target_sys)
+    st.markdown(
+        f"""
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 0.85rem; font-size: 0.82rem;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <strong style="color: #34d399;">🎯 Target Campus Asset: {target_sys} — {asset_meta['name']}</strong>
+                <span style="color: #94a3b8; font-size: 0.74rem;">Owner: {asset_meta['owner']} | Category: {asset_meta['category']}</span>
+            </div>
+            <div style="color: var(--tw-text-primary); margin-top: 0.25rem;">
+                <strong>Purpose:</strong> {asset_meta['purpose']}
+            </div>
+            <div style="color: #fca5a5; margin-top: 0.25rem;">
+                <strong>Unmitigated Business Consequence:</strong> {asset_meta['business_impact']}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     col_btn1, col_btn2 = st.columns([1, 4])
-
     run_sim = col_btn1.button("Run Simulation", type="primary")
-
     reset_sim = col_btn2.button("Restore Baseline")
 
 
@@ -879,21 +910,13 @@ def render_incident_simulation():
 
 
     scenario_options = {
-
-        "Customer Portal Compromise": "customer_portal_compromise",
-
-        "Employee Compromise": "employee_compromise",
-
-        "Remote Access Compromise": "remote_access_compromise",
-
-        "Backup Targeting": "backup_targeting",
-
+        "Student Academic Portal Compromise (WEB01/WEB02 -> APP01 -> DB01)": "customer_portal_compromise",
+        "Faculty & Staff Workstation Compromise (EMP01 -> AUTH01 -> APP01)": "employee_compromise",
+        "Faculty Remote Grading VPN Ingress (VPN01 -> AUTH01 -> DB01)": "remote_access_compromise",
+        "Campus Ransomware & Backup Vault Tampering (BACKUP01 -> DB01)": "backup_targeting",
     }
 
-
-
-    selected_label = st.selectbox("Scenario", list(scenario_options.keys()))
-
+    selected_label = st.selectbox("University Incident Scenario", list(scenario_options.keys()))
     scenario_id = scenario_options[selected_label]
 
 
@@ -943,89 +966,54 @@ def render_incident_simulation():
 
 
         col1, col2 = st.columns(2)
-
         with col1:
-
-            st.metric("Entry Point", result.incident.get("entry_point", "—"))
-
-            st.metric("Affected Systems", ", ".join(result.affected_systems) if result.affected_systems else "—")
+            entry = result.incident.get("entry_point", "—")
+            entry_display = f"{entry} ({get_asset_name(entry, short=True)})" if entry != "—" else "—"
+            st.metric("Entry Point", entry_display)
+            affected_display = ", ".join(f"{s} ({get_asset_name(s, short=True)})" for s in result.affected_systems) if result.affected_systems else "—"
+            st.metric("Affected Campus Systems", affected_display)
 
         with col2:
-
             st.metric("Related Vulnerabilities", len(result.related_vulnerabilities))
-
-            st.metric("Important Assets Affected", ", ".join(result.incident.get("critical_assets_affected", [])) or "—")
-
-
+            crit_assets = result.incident.get("critical_assets_affected", [])
+            crit_display = ", ".join(f"{s} ({get_asset_name(s, short=True)})" for s in crit_assets) if crit_assets else "—"
+            st.metric("Critical Campus Assets Targeted", crit_display)
 
         with st.expander("Technical Details"):
-
             st.write("**Scenario:**", result.scenario.get("name", selected_label))
-
             st.write("**Incident ID:**", result.incident.get("incident_id", "—"))
-
             st.write("**Event Count:**", result.incident.get("event_count", 0))
-
             st.write("**Potential Attack Route:**", " → ".join(result.attack_path.get("simulated_attack_path", [])))
-
             st.write("**Route Difficulty Score:**", result.attack_path.get("total_risk_cost", "—"))
 
-
-
             st.write("**Affected Systems:**")
-
             for system_id in result.affected_systems:
-
-                st.write(f"- {system_id}")
-
-
+                st.write(f"- **{system_id}** — {get_asset_name(system_id)} (*{get_asset(system_id)['category']}*)")
 
             st.write("**Related Vulnerabilities:**")
-
             for vuln_id in result.related_vulnerabilities:
-
                 st.write(f"- {vuln_id}")
 
-
-
         st.markdown("---")
-
         st.subheader("Simulated Event Timeline")
-
         st.caption(
-
             "This timeline shows a fictional, deterministic sequence for demonstration only. "
-
             "It does not represent real security incidents, breaches, or malicious activity."
-
         )
 
-
-
         timeline_events = result.events or []
-
         if timeline_events:
-
             for idx, event in enumerate(timeline_events, start=1):
-
                 event_type = event.get("event_type", "unknown")
-
                 event_type_label = event_type.replace("_", " ").title()
-
                 description = event.get("description", "")
-
                 target = event.get("target", "—")
-
-
+                target_display = f"{target} ({get_asset_name(target, short=True)})" if target != "—" else "—"
 
                 st.markdown(
-
-                    f"**{idx}.** {event_type_label} — **{target}**  "
-
+                    f"**{idx}.** {event_type_label} — **{target_display}**  "
                     f"<span style='color: #9ca3af; font-size: 0.85rem;'>({description})</span>",
-
                     unsafe_allow_html=True,
-
                 )
 
         else:
