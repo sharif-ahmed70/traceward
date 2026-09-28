@@ -27,14 +27,6 @@ from dashboard.overview_components import (
     render_smart_remediation_queue,
     render_detection_defense_status,
     render_operational_studios,
-    render_campus_asset_explorer,
-    render_faculty_demo_guide,
-)
-from dashboard.asset_metadata import (
-    get_asset,
-    get_asset_name,
-    format_asset_label,
-    get_system_business_impact,
 )
 
 
@@ -177,51 +169,109 @@ def inject_theme(theme_mode: str = "Dark") -> None:
 
     /* Sidebar Navigation Styling */
     [data-testid="stSidebar"] {{
-        background-color: #070d1e !important;
-        border-right: 1px solid rgba(56, 189, 248, 0.1) !important;
+        background-color: {"#f8fafc" if is_light else "#070d1e"} !important;
+        border-right: 1px solid {border} !important;
     }}
 
     [data-testid="stSidebar"] .block-container {{
-        padding-top: 1.25rem !important;
-        padding-left: 1.15rem !important;
-        padding-right: 1.15rem !important;
+        padding-top: 1.15rem !important;
+        padding-left: 0.95rem !important;
+        padding-right: 0.95rem !important;
     }}
 
-    /* Hide native radio circles in sidebar */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child,
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] label svg,
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] input[type="radio"] {{
-        display: none !important;
+    /* Custom Navigation Buttons in Sidebar */
+    [data-testid="stSidebar"] div.stButton {{
+        margin-bottom: 0.22rem !important;
     }}
 
-    /* Style sidebar radio labels as sleek interactive pills */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label {{
-        background: transparent !important;
-        border-radius: 8px !important;
-        padding: 0.48rem 0.85rem !important;
-        margin-bottom: 0.25rem !important;
-        cursor: pointer !important;
-        transition: all 0.15s ease-in-out !important;
-        border: 1px solid transparent !important;
+    [data-testid="stSidebar"] div.stButton > button {{
         width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        padding: 0.52rem 0.85rem !important;
+        min-height: 42px !important;
+        border-radius: 8px !important;
+        transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        cursor: pointer !important;
+        position: relative !important;
+        overflow: hidden !important;
+        border: 1px solid transparent !important;
+        border-left: 3.5px solid transparent !important;
     }}
 
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:hover {{
-        background: rgba(30, 58, 110, 0.35) !important;
-        border-color: rgba(56, 189, 248, 0.2) !important;
+    [data-testid="stSidebar"] div.stButton > button div[data-testid="stMarkdownContainer"] {{
+        width: 100% !important;
+        text-align: left !important;
     }}
 
-    /* Active selected stage pill */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:has(input:checked) {{
-        background: #1d4ed8 !important;
-        border: 1px solid #3b82f6 !important;
-        box-shadow: 0 4px 12px rgba(29, 78, 216, 0.35) !important;
+    [data-testid="stSidebar"] div.stButton > button div[data-testid="stMarkdownContainer"] > p {{
+        font-size: 0.86rem !important;
+        text-align: left !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.65rem !important;
+        white-space: nowrap !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 1.4 !important;
+        letter-spacing: -0.01em !important;
     }}
 
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:has(input:checked) p,
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:has(input:checked) span {{
+    /* Active Stage Glass Highlight (Primary Button in Sidebar) */
+    [data-testid="stSidebar"] div.stButton > button[kind="primary"],
+    [data-testid="stSidebar"] div.stButton > button[data-testid="baseButton-primary"] {{
+        background: {"linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)" if is_light else "linear-gradient(135deg, rgba(29, 78, 216, 0.9) 0%, rgba(30, 58, 138, 0.95) 100%)"} !important;
+        border: 1px solid {"#1e40af" if is_light else "rgba(96, 165, 250, 0.55)"} !important;
+        border-left: 3.5px solid {"#60a5fa" if is_light else "#38bdf8"} !important;
+        box-shadow: {"0 4px 14px rgba(37, 99, 235, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.35)" if is_light else "0 4px 18px rgba(29, 78, 216, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.25)"} !important;
+        color: #ffffff !important;
+    }}
+
+    [data-testid="stSidebar"] div.stButton > button[kind="primary"] div[data-testid="stMarkdownContainer"] > p,
+    [data-testid="stSidebar"] div.stButton > button[data-testid="baseButton-primary"] div[data-testid="stMarkdownContainer"] > p {{
         color: #ffffff !important;
         font-weight: 700 !important;
+        text-shadow: {"none" if is_light else "0 1px 2px rgba(0, 0, 0, 0.3)"} !important;
+    }}
+
+    [data-testid="stSidebar"] div.stButton > button[kind="primary"]:hover,
+    [data-testid="stSidebar"] div.stButton > button[data-testid="baseButton-primary"]:hover {{
+        background: {"linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%)" if is_light else "linear-gradient(135deg, rgba(37, 99, 235, 0.95) 0%, rgba(29, 78, 216, 0.95) 100%)"} !important;
+        border-color: {"#1e3a8a" if is_light else "rgba(147, 197, 253, 0.75)"} !important;
+        box-shadow: {"0 6px 18px rgba(37, 99, 235, 0.45)" if is_light else "0 6px 22px rgba(37, 99, 235, 0.55)"} !important;
+    }}
+
+    /* Inactive Stage Navigation Buttons (Secondary Button in Sidebar) */
+    [data-testid="stSidebar"] div.stButton > button[kind="secondary"],
+    [data-testid="stSidebar"] div.stButton > button[data-testid="baseButton-secondary"] {{
+        background: transparent !important;
+        border: 1px solid transparent !important;
+        border-left: 3.5px solid transparent !important;
+        box-shadow: none !important;
+        color: {"#475569" if is_light else "#94a3b8"} !important;
+    }}
+
+    [data-testid="stSidebar"] div.stButton > button[kind="secondary"] div[data-testid="stMarkdownContainer"] > p,
+    [data-testid="stSidebar"] div.stButton > button[data-testid="baseButton-secondary"] div[data-testid="stMarkdownContainer"] > p {{
+        color: {"#475569" if is_light else "#94a3b8"} !important;
+        font-weight: 500 !important;
+        transition: color 0.15s ease !important;
+    }}
+
+    /* Inactive Hover State */
+    [data-testid="stSidebar"] div.stButton > button[kind="secondary"]:hover,
+    [data-testid="stSidebar"] div.stButton > button[data-testid="baseButton-secondary"]:hover {{
+        background: {"#e2e8f0" if is_light else "rgba(30, 58, 110, 0.35)"} !important;
+        border: 1px solid {"#cbd5e1" if is_light else "rgba(56, 189, 248, 0.2)"} !important;
+        border-left: 3.5px solid {"#3b82f6" if is_light else "rgba(56, 189, 248, 0.6)"} !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    }}
+
+    [data-testid="stSidebar"] div.stButton > button[kind="secondary"]:hover div[data-testid="stMarkdownContainer"] > p,
+    [data-testid="stSidebar"] div.stButton > button[data-testid="baseButton-secondary"]:hover div[data-testid="stMarkdownContainer"] > p {{
+        color: {"#0f172a" if is_light else "#f1f5f9"} !important;
     }}
 
     /* Glass Cards */
@@ -288,17 +338,14 @@ def inject_theme(theme_mode: str = "Dark") -> None:
     }}
 
     /* Top Header theme pill button */
-    div[data-testid="column"]:has(button[key="soc_theme_toggle_btn"]) button,
-    button[key="soc_theme_toggle_btn"],
     button[data-testid="baseButton-secondary"]:has(> div:has(> p:contains("Dark"))),
     button[data-testid="baseButton-secondary"]:has(> div:has(> p:contains("Light"))) {{
         border-radius: 9999px !important;
-        padding: 0.35rem 0.65rem !important;
+        padding: 0.3rem 0.65rem !important;
         font-size: 0.72rem !important;
         background: var(--tw-bg-surface) !important;
         border: 1px solid var(--tw-border) !important;
         color: var(--tw-text-primary) !important;
-        box-shadow: none !important;
     }}
 
     /* Dataframe and Tables */
@@ -437,39 +484,64 @@ def render_sidebar_navigation() -> str:
             """
         )
 
-        render_html('<div style="height: 0.5rem;"></div>')
+        render_html('<div style="height: 0.35rem;"></div>')
 
-        if "nav_stage" not in st.session_state:
-            st.session_state["nav_stage"] = "Threat Discovery"
+        # Determine current active stage
+        current_stage = st.session_state.get("nav_stage", "Threat Discovery")
+        if "soc_stage_radio" in st.session_state and st.session_state["soc_stage_radio"] in NAV_STAGES:
+            if st.session_state.get("_last_synced_stage") != st.session_state["soc_stage_radio"]:
+                current_stage = st.session_state["soc_stage_radio"]
+                st.session_state["nav_stage"] = current_stage
+                st.session_state["_last_synced_stage"] = current_stage
 
-        current_index = 0
-        if st.session_state["nav_stage"] in NAV_STAGES:
-            current_index = NAV_STAGES.index(st.session_state["nav_stage"])
+        if current_stage not in NAV_STAGES:
+            current_stage = "Threat Discovery"
+            st.session_state["nav_stage"] = current_stage
 
-        selected_stage = st.radio(
-            "Security Operations Stage",
-            NAV_STAGES,
-            index=current_index,
-            format_func=lambda s: f"{STAGE_ICONS.get(s, '')}  {s}",
-            key="soc_stage_radio",
-            label_visibility="collapsed",
-        )
-        st.session_state["nav_stage"] = selected_stage
+        # Render custom enterprise SOC navigation buttons with active glass highlight
+        clicked_stage = None
+        for stage in NAV_STAGES:
+            is_active = (stage == current_stage)
+            icon = STAGE_ICONS.get(stage, "•")
+            btn_type = "primary" if is_active else "secondary"
+            btn_label = f"{icon}  {stage}"
+            if st.button(
+                btn_label,
+                key=f"sidebar_btn_{stage}",
+                type=btn_type,
+                use_container_width=True,
+            ):
+                clicked_stage = stage
 
-        render_html('<hr style="margin: 1.25rem 0 0.85rem 0; border: none; border-top: 1px solid var(--tw-border);">')
+        if clicked_stage and clicked_stage != current_stage:
+            current_stage = clicked_stage
+            st.session_state["nav_stage"] = current_stage
+            st.session_state["soc_stage_radio"] = current_stage
+            st.session_state["_last_synced_stage"] = current_stage
+            try:
+                st.query_params["stage"] = current_stage
+            except Exception:
+                pass
+            st.rerun()
 
-        # SYSTEM STATUS telemetry card
+        st.session_state["soc_stage_radio"] = current_stage
+        st.session_state["_last_synced_stage"] = current_stage
+        selected_stage = current_stage
+
+        render_html('<hr style="margin: 1.1rem 0 0.85rem 0; border: none; border-top: 1px solid var(--tw-border);">')
+
+        # SYSTEM STATUS telemetry card (maintaining UIU Campus simulation information)
         render_html(
             """
-            <div style="padding: 0.75rem; border-radius: 0.5rem; background: var(--tw-bg-surface); border: 1px solid var(--tw-border);">
-                <div style="font-size: 0.68rem; color: var(--tw-text-secondary); text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: 0.05em;">CAMPUS SOC STATUS</div>
+            <div style="padding: 0.75rem 0.85rem; border-radius: 0.5rem; background: var(--tw-bg-surface); border: 1px solid var(--tw-border);">
+                <div style="font-size: 0.68rem; color: var(--tw-text-secondary); text-transform: uppercase; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: 0.05em;">SYSTEM STATUS</div>
                 <div style="font-size: 0.78rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
                     <span style="color: var(--tw-text-secondary); display: flex; align-items: center; gap: 0.3rem;">🖥️ Monitored Hosts</span>
                     <strong style="color: var(--tw-text-primary);">8</strong>
                 </div>
                 <div style="font-size: 0.78rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
                     <span style="color: var(--tw-text-secondary); display: flex; align-items: center; gap: 0.3rem;">🎯 Crown Jewel</span>
-                    <strong style="color: var(--tw-text-primary);" title="Student Academic Database">DB01 (Student DB)</strong>
+                    <strong style="color: var(--tw-text-primary);">DB01 (Student DB)</strong>
                 </div>
                 <div style="font-size: 0.78rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
                     <span style="color: var(--tw-text-secondary); display: flex; align-items: center; gap: 0.3rem;">⚙️ Pipeline Status</span>
@@ -477,7 +549,7 @@ def render_sidebar_navigation() -> str:
                 </div>
                 <div style="font-size: 0.78rem; display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: var(--tw-text-secondary); display: flex; align-items: center; gap: 0.3rem;">🌐 Environment</span>
-                    <strong style="color: #38bdf8;" title="United International University — Simulated Digital Campus">UIU Campus</strong>
+                    <strong style="color: #38bdf8;">UIU Campus</strong>
                 </div>
             </div>
             """
@@ -488,23 +560,23 @@ def render_sidebar_navigation() -> str:
         # Links
         render_html(
             """
-            <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.78rem; padding: 0 0.2rem;">
-                <div style="display: flex; align-items: center; gap: 0.4rem; color: var(--tw-text-secondary);">
+            <div style="display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.78rem; padding: 0 0.15rem;">
+                <div style="display: flex; align-items: center; gap: 0.45rem; color: var(--tw-text-secondary);">
                     <span>ℹ️</span> <span>About TraceWard</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.4rem; color: var(--tw-text-secondary);">
+                <div style="display: flex; align-items: center; gap: 0.45rem; color: var(--tw-text-secondary);">
                     <span>📄</span> <span>Documentation</span>
                 </div>
             </div>
             """
         )
 
-        render_html('<div style="height: 1.5rem;"></div>')
+        render_html('<div style="height: 1.25rem;"></div>')
 
         # Footer
         render_html(
             """
-            <div style="font-size: 0.7rem; color: var(--tw-text-secondary); padding: 0 0.2rem;">
+            <div style="font-size: 0.7rem; color: var(--tw-text-secondary); padding: 0 0.15rem;">
                 <div style="font-weight: 600; color: var(--tw-text-secondary);">TraceWard v0.2</div>
                 <div style="color: var(--tw-text-secondary); opacity: 0.8; margin-top: 0.1rem;">Autonomous Cyber Risk Defense</div>
             </div>
@@ -2050,9 +2122,7 @@ def render_attack_path_intelligence(attack_path_info: dict[str, Any], is_mock: b
         for idx, node in enumerate(path_nodes):
 
             node_id = node.get("node_id", "")
-
             name = get_asset_name(node_id)
-
             phase = node.get("phase", "")
 
             step_cost = node.get("step_cost", 0.0)
