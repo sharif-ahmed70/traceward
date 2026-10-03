@@ -1,4 +1,5 @@
 event_id,scenario_id,timestamp,source,target,event_type,vulnerability_id,severity,description
-SIM-CUSTOMER_PORTAL_COMPROMISE-01,customer_portal_compromise,1,INTERNET,WEB01,initial_access,V0006,High,Simulated initial access from INTERNET to WEB01.
-SIM-CUSTOMER_PORTAL_COMPROMISE-02,customer_portal_compromise,2,WEB01,APP01,lateral_movement,V0076,High,Simulated lateral_movement from WEB01 to APP01.
-SIM-CUSTOMER_PORTAL_COMPROMISE-03,customer_portal_compromise,3,APP01,DB01,data_access,V0031,Critical,Simulated data_access from APP01 to DB01.
+SIM-EMPLOYEE_COMPROMISE-01,employee_compromise,1,INTERNET,EMP01,initial_access,V0178,High,Simulated initial access from INTERNET to EMP01.
+SIM-EMPLOYEE_COMPROMISE-02,employee_compromise,2,EMP01,AUTH01,lateral_movement,V0045,High,Simulated lateral_movement from EMP01 to AUTH01.
+SIM-EMPLOYEE_COMPROMISE-03,employee_compromise,3,AUTH01,APP01,lateral_movement,V0076,High,Simulated lateral_movement from AUTH01 to APP01.
+SIM-EMPLOYEE_COMPROMISE-04,employee_compromise,4,APP01,DB01,data_access,V0031,Critical,Simulated data_access from APP01 to DB01.

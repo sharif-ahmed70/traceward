@@ -11,29 +11,43 @@ import json
 import sys
 from pathlib import Path
 
-import pandas as pd
-import streamlit as st
-
-from src.finbank_simulation import run_finbank_simulation  # noqa: E402
-from src.finbank_env import load_finbank_systems  # noqa: E402
-
+# Add project root to Python's import path BEFORE importing src.*
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.csp_solver import CSPCase, VulnerabilityTask, solve_csp  # noqa: E402
-from src.explainability import (  # noqa: E402
+import pandas as pd
+import streamlit as st
+
+from src.finbank_simulation import run_finbank_simulation
+from src.finbank_env import load_finbank_systems
+from src.csp_solver import CSPCase, VulnerabilityTask, solve_csp
+from src.explainability import (
     explain_attack_path,
     explain_patch_priority,
     explain_risk,
     explain_vulnerability,
 )
-from src.knn_classifier import (  # noqa: E402
+from src.knn_classifier import (
     FEATURE_COLUMNS,
     predict_single_vulnerability,
 )
-from src.what_if_simulation import simulate_patch_impact  # noqa: E402
+from src.what_if_simulation import simulate_patch_impact
 
+st.set_page_config(page_title="TraceWard", page_icon="🛡️", layout="wide")
+
+try:
+    from dashboard.ui import (
+        _generate_attack_graph_dot,
+        inject_dark_theme,
+        render_attack_path_intelligence,
+        render_remediation_priority_card,
+        render_structured_explanation_card,
+    )
+
+    inject_dark_theme()
+except Exception:
+    pass
 st.set_page_config(page_title="TraceWard", page_icon="🛡️", layout="wide")
 
 try:
@@ -436,7 +450,11 @@ def render_incident_simulation():
     selected_label = st.selectbox("Scenario", list(scenario_options.keys()))
     scenario_id = scenario_options[selected_label]
 
-    run_btn = st.button("Run Simulation", type="primary")
+    run_btn = st.button(
+    "Run Simulation",
+    type="primary",
+    key="finbank_run_simulation"
+)
 
     if run_btn or "finbank_sim_result" in st.session_state:
         if run_btn:
