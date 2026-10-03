@@ -555,9 +555,7 @@ def _solve(case: CSPCase, use_mrv: bool, use_degree: bool, use_forward_checking:
             stats["backtracks"] += 1
         return False
 
-    started = time.perf_counter()
     solved = backtrack(domains)
-    stats["time_ms"] = round((time.perf_counter() - started) * 1000, 3)
     return (dict(assignment) if solved else None), stats
 
 
@@ -669,7 +667,9 @@ def compare_csp_strategies(case: Optional[CSPCase] = None) -> List[Dict[str, Any
         case, _ = build_csp_case_from_pipeline()
     rows = []
     for name, options in CSP_STRATEGIES:
+        started = time.perf_counter()
         res = solve_csp(case, **options)
+        elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
         stats = res["stats"]
         rows.append({
             "strategy": name,
@@ -678,7 +678,7 @@ def compare_csp_strategies(case: Optional[CSPCase] = None) -> List[Dict[str, Any
             "backtracks": stats["backtracks"],
             "constraint_checks": stats["constraint_checks"],
             "pruned_values": stats["ac3_pruned"] + stats["fc_pruned"],
-            "time_ms": stats["time_ms"],
+            "time_ms": elapsed_ms,
             "constraints_satisfied": res["status"] == "feasible" and not res["violations"],
         })
     return rows

@@ -176,7 +176,7 @@ def run_pipeline():
     print(f"      Remediation Solver: {csp_result['solver']} + {', '.join(csp_result['heuristics'])} (Status: {csp_result['status']})")
     stats = csp_result["stats"]
     print(f"      Search effort: {stats['assignments']} assignments, {stats['backtracks']} backtracks, "
-          f"{stats['constraint_checks']} constraint checks, {stats['time_ms']} ms")
+          f"{stats['constraint_checks']} constraint checks")
     print(f"      Constraint violations: {len(csp_result.get('violations', []))}")
     meta = csp_result.get("metadata", {})
     if meta.get("source") == "live_pipeline":
