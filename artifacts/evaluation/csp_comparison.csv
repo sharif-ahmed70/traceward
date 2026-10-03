@@ -1,0 +1,16 @@
+case,tasks,strategy,status,assignments,backtracks,constraint_checks,pruned_values,time_ms,constraints_satisfied
+baseline,10,Plain Backtracking,feasible,11,1,45,0,0.1,True
+baseline,10,Backtracking + MRV/Degree,feasible,11,1,270,0,1.071,True
+baseline,10,Backtracking + Forward Checking,feasible,11,1,93,40,0.196,True
+baseline,10,MRV/Degree + Forward Checking,feasible,11,1,105,52,0.28,True
+baseline,10,MRV/Degree + FC + AC-3,feasible,10,0,587,46,0.261,True
+stress,17,Plain Backtracking,feasible,6845,6828,126839,0,171.207,True
+stress,17,Backtracking + MRV/Degree,feasible,18,1,1791,0,3.112,True
+stress,17,Backtracking + Forward Checking,feasible,6813,6796,139362,19487,213.04,True
+stress,17,MRV/Degree + Forward Checking,feasible,18,1,390,109,0.891,True
+stress,17,MRV/Degree + FC + AC-3,feasible,17,0,2265,99,0.862,True
+overload,17,Plain Backtracking,infeasible,54064,54064,208816,0,424.932,False
+overload,17,Backtracking + MRV/Degree,infeasible,308,308,28350,0,52.41,False
+overload,17,Backtracking + Forward Checking,infeasible,49959,49959,338532,296425,1062.625,False
+overload,17,MRV/Degree + Forward Checking,infeasible,308,308,5690,1646,16.774,False
+overload,17,MRV/Degree + FC + AC-3,infeasible,358,358,7468,2120,16.393,False

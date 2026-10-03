@@ -98,6 +98,10 @@ def simulate_patch_impact(
     # 6. Update simulated graph copy (preserve all edges and adjacency)
     sim_graph = copy.deepcopy(graph)
     sim_graph["risk_map"][target_system] = sim_normalized_risk
+    # A patch also removes exploitable weaknesses, lowering attacker ease on that host.
+    exploit_map = sim_graph.get("exploit_map", {})
+    if target_system in exploit_map:
+        exploit_map[target_system] = round(exploit_map[target_system] * (1.0 - risk_reduction_factor), 3)
     for node in sim_graph["nodes"]:
         if node["id"] == target_system:
             node["risk_score"] = sim_normalized_risk

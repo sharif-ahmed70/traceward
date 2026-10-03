@@ -1,7 +1,7 @@
 # TraceWard: Intelligent Cybersecurity Risk Analysis, Attack Path Detection & Smart Remediation Planning
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Tests Passing](https://img.shields.io/badge/tests-430%20passed-success.svg)](tests/)
+[![Tests Passing](https://img.shields.io/badge/tests-443%20passed-success.svg)](tests/)
 [![Architecture](https://img.shields.io/badge/architecture-modular%20pipeline-brightgreen.svg)](docs/MODULE_CONTRACTS.md)
 [![UI](https://img.shields.io/badge/dashboard-Streamlit-red.svg)](dashboard/app.py)
 
@@ -48,12 +48,12 @@ TraceWard operates as a cohesive, deterministic 8-stage pipeline where each modu
     6. Risk-Weighted Attack Graph Construction (Directed topology with dynamic friction)
                            │
                            ▼
-    7. A* Search Attack Path Detection (Minimum defensive resistance corridor, Cost: 4.08)
+    7. A* Search Attack Path Detection (admissible hop heuristic, Cost: 8.28, 4 nodes expanded)
                            │
                            ▼
-    8. Backtracking CSP Remediation Planner (Team qualification & temporal prerequisites)
-       ├── Solves feasible patch schedule (5 critical corridor tasks scheduled)
-       └── Tracks pending operational backlog (235 items queued)
+    8. Backtracking CSP Remediation Planner (MRV, Degree, Forward Checking, AC-3; 7 constraints)
+       ├── Solves feasible patch schedule (10 tasks scheduled, 0 constraint violations)
+       └── Tracks pending operational backlog (230 items queued)
                            │
                            ▼
     9. Structured Explainability Engine (Exploitability vs. CIA Impact attribution)
@@ -78,17 +78,23 @@ TraceWard operates as a cohesive, deterministic 8-stage pipeline where each modu
 
 ### 🌐 Risk-Weighted Attack Path Detection (A* Search)
 - Constructs a directed enterprise graph (8 nodes: 1 untrusted `INTERNET` ingress + 7 host systems; 9 directed edges).
-- Implements dynamic traversal edge impedance: $c(u, v) = \max(0.5, \text{round}(2.0 - \text{Risk}(v), 2))$.
-- Computes the critical breach corridor from `INTERNET` to crown-jewel database `DB01`:
-  $$\text{INTERNET} \xrightarrow{c=1.37} \text{WEB01} \xrightarrow{c=1.35} \text{APP01} \xrightarrow{c=1.36} \text{DB01} \quad (\text{Total Cost: } 4.08)$$
-- Defensibly demonstrates why the 3-hop corridor represents the path of least resistance over the 5-hop VPN route (Cost: 6.85).
+- **Edge cost** (lower = easier for the attacker): $c(u, v) = \text{base\_cost}(u, v) \times (1.5 - \text{ease}(v))$, where $\text{ease}(v) = 0.5 \cdot \text{KNN risk}(v) + 0.5 \cdot \text{CVSS exploitability}(v)$ (attack complexity, privileges required, user interaction, exploit probability).
+- **Heuristic**: $h(n) = c_{min} \times \text{hops}(n, goal)$, admissible and consistent; nodes that cannot reach the goal are pruned ($h = \infty$).
+- Critical path `INTERNET → WEB01 → APP01 → DB01` (**cost 8.28**) vs. `… → AUTH01 → …` (11.13) and the VPN route (12.15).
+- Exports the full f/g/h expansion trace and compares against UCS and BFS: A* expands **4 nodes** vs. 8 for UCS, with the same optimal cost (`artifacts/evaluation/`).
 
 ### 📋 Constraint-Based Remediation Planning (Backtracking CSP)
-- Formulates patch scheduling as a formal Constraint Satisfaction Problem:
-  - **Constraint 1 (Team Specialization)**: Tasks are assigned exclusively to qualified operational teams (Web, Application, Database, Network).
-  - **Constraint 2 (Resource Capacity)**: Strictly zero team multitasking (max 1 task per team per operational slot).
-  - **Constraint 3 (Defensive Prerequisites)**: Boundary/perimeter fixes must strictly precede internal application fixes (`APP01` depends on `WEB01`; `BACKUP01` depends on `DB01`).
-- Generates a feasible schedule across operational windows and explicitly tracks non-scheduled items in a pending backlog.
+- Variables: 10 remediation tasks (top 2 per A* attack-path system, top 1 per other system). Domains: (team, time slot). Configuration: `data/constraints.json`.
+- Constraints:
+  - **C1 Team qualification**: each task goes to its specialist team.
+  - **C2 Team availability**: a team patches at most one system per slot.
+  - **C3 Patch dependency**: `APP01` after `WEB01`, `DB01` after `APP01`, `BACKUP01` after `DB01`, `EMP01` after `VPN01`.
+  - **C4 Maintenance window**: `DB01`, `BACKUP01`, `AUTH01` are patched only outside business hours (09:00–18:00).
+  - **C5 Downtime restriction**: no two of `AUTH01`, `DB01`, `BACKUP01` offline in the same slot.
+  - **C6 Resource limit**: at most 4 patches per day.
+  - **C7 Attack-path priority**: attack-path tasks must finish by `Tue 23:00`.
+- Search: Backtracking with **MRV + Degree**, **Forward Checking** and **AC-3** (each toggleable). Every schedule is independently re-verified.
+- Evaluation: on a 17-task stress case, plain backtracking needs **6,828 backtracks**, while MRV + FC + AC-3 needs **0**.
 
 ### 💡 Structured Explainability Engine (XAI)
 - **Multi-Factor Attribution**: Deconstructs risk ratings into Exploitability and CIA Impact subscores with qualitative directional rationale.
@@ -113,7 +119,7 @@ TraceWard operates as a cohesive, deterministic 8-stage pipeline where each modu
 | **Web Dashboard** | Streamlit | Real-time multi-tab cybersecurity command center |
 | **Visualization** | Graphviz / Matplotlib | Directed attack graphs and ML evaluation curves (Elbow, Confusion Matrix) |
 | **Serialization** | Joblib / JSON / CSV | Contract-compliant artifact persistence |
-| **Testing** | Python `unittest` | Automated regression test suite (430 tests) |
+| **Testing** | Python `unittest` | Automated regression test suite (443 tests) |
 
 ---
 
@@ -126,9 +132,9 @@ TraceWard operates as a cohesive, deterministic 8-stage pipeline where each modu
 | **Security Feature Dimensions** | **7 CVSS dimensions** | 6 ordinal (0..2) + 1 continuous (0.0..1.0) |
 | **Supervised Model Quality** | **73.75% Acc / 0.7298 F1** | Stratified 80/20 train/test split ($N=240$ test set) |
 | **Structural Clusters** | **4 clusters ($K=4$)** | Discrete second difference elbow ($D^2=189.30$) |
-| **Critical Attack Path Cost** | **4.08 (3 hops)** | `artifacts/astar/attack_path.json` |
-| **Scheduled Tasks vs. Backlog** | **5 scheduled / 235 backlog** | `artifacts/csp/patch_schedule.json` |
-| **Automated Test Coverage** | **430 passed (0 errors)** | Full test suite across 18 modules |
+| **Critical Attack Path Cost** | **8.28 (3 hops)** | `artifacts/astar/attack_path.json` |
+| **Scheduled Tasks vs. Backlog** | **10 scheduled / 230 backlog** | `artifacts/csp/patch_schedule.json` |
+| **Automated Test Coverage** | **443 passed (0 errors)** | Full test suite across 18 modules |
 | **Dashboard Navigation** | **7 interactive tabs** | `dashboard/app.py` |
 
 ---
@@ -138,7 +144,8 @@ TraceWard operates as a cohesive, deterministic 8-stage pipeline where each modu
 ```
 traceward/
 ├── artifacts/                  # Generated model artifacts and pipeline outputs
-│   ├── astar/                  # A* critical attack path JSON
+│   ├── astar/                  # A* critical attack path, trace and alternatives JSON
+│   ├── evaluation/             # A* and CSP evaluation tables and report
 │   ├── csp/                    # Scheduled patch plan JSON
 │   ├── kmeans/                 # Cluster assignments, profiles, elbow & silhouette plots
 │   ├── knn/                    # Fitted model pipeline, predictions, confusion matrix
@@ -156,7 +163,8 @@ traceward/
 │   ├── MODULE_CONTRACTS.md     # Module interface and contract specifications
 ├── src/
 │   ├── astar_search.py         # A* risk-aware shortest path search
-│   ├── csp_solver.py           # Backtracking Constraint Satisfaction Problem solver
+│   ├── csp_solver.py           # Backtracking CSP solver (MRV, Degree, FC, AC-3)
+│   ├── evaluation.py           # A* vs UCS/BFS and CSP strategy evaluation
 │   ├── explainability.py       # Structured Explainability Engine (XAI)
 │   ├── graph_builder.py        # Network topology & risk-weighted graph constructor
 │   ├── kmeans_clustering.py    # K-Means clustering, elbow heuristic & silhouette analysis
@@ -170,7 +178,7 @@ traceward/
 │   ├── finbank_astar_integration.py  # FinBank A* attack path analysis
 │   ├── finbank_csp_planner.py  # FinBank CSP remediation planning
 │   ├── what_if_simulation.py   # Isolated system hardening simulator
-├── tests/                      # Automated unit and integration test suites (430 tests)
+├── tests/                      # Automated unit and integration test suites (443 tests)
 │   ├── test_explainability.py
 │   ├── test_foundation_integration.py
 │   ├── test_finbank_assignment.py
@@ -228,7 +236,7 @@ Verify module contracts, zero data leakage, and system integrity:
 ```powershell
 python -m unittest discover -v -s tests -p "test_*.py"
 ```
-*(Runs all 430 unit and integration tests across 18 test suites).*
+*(Runs all 443 unit and integration tests across 18 test suites).*
 
 ### Step 4: Launch the Interactive Dashboard
 Start the local Streamlit command center:

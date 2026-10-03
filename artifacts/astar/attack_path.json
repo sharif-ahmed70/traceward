@@ -1,4 +1,5 @@
 {
+  "algorithm": "A*",
   "start": "INTERNET",
   "goal": "DB01",
   "path": [
@@ -7,5 +8,123 @@
     "APP01",
     "DB01"
   ],
-  "total_cost": 4.08
+  "total_cost": 8.28,
+  "hops": [
+    {
+      "source": "INTERNET",
+      "target": "WEB01",
+      "cost": 1.83,
+      "entry_vuln": "V0980"
+    },
+    {
+      "source": "WEB01",
+      "target": "APP01",
+      "cost": 2.72,
+      "entry_vuln": "V1001"
+    },
+    {
+      "source": "APP01",
+      "target": "DB01",
+      "cost": 3.73,
+      "entry_vuln": "V0576"
+    }
+  ],
+  "nodes_expanded": 4,
+  "nodes_generated": 6,
+  "trace": [
+    {
+      "step": 1,
+      "node": "INTERNET",
+      "g": 0.0,
+      "h": 5.43,
+      "f": 5.43,
+      "open_size": 0
+    },
+    {
+      "step": 2,
+      "node": "WEB01",
+      "g": 1.83,
+      "h": 3.62,
+      "f": 5.45,
+      "open_size": 1
+    },
+    {
+      "step": 3,
+      "node": "APP01",
+      "g": 4.55,
+      "h": 1.81,
+      "f": 6.36,
+      "open_size": 2
+    },
+    {
+      "step": 4,
+      "node": "DB01",
+      "g": 8.28,
+      "h": 0.0,
+      "f": 8.28,
+      "open_size": 2
+    }
+  ],
+  "heuristic": "h(n) = c_min x hops(n, goal)",
+  "alternative_paths": [
+    {
+      "path": [
+        "INTERNET",
+        "WEB01",
+        "APP01",
+        "DB01"
+      ],
+      "total_cost": 8.28,
+      "hops": 3
+    },
+    {
+      "path": [
+        "INTERNET",
+        "WEB01",
+        "AUTH01",
+        "APP01",
+        "DB01"
+      ],
+      "total_cost": 11.13,
+      "hops": 4
+    },
+    {
+      "path": [
+        "INTERNET",
+        "VPN01",
+        "EMP01",
+        "AUTH01",
+        "APP01",
+        "DB01"
+      ],
+      "total_cost": 12.15,
+      "hops": 5
+    }
+  ],
+  "comparison": [
+    {
+      "algorithm": "A*",
+      "path": "INTERNET -> WEB01 -> APP01 -> DB01",
+      "total_cost": 8.28,
+      "hops": 3,
+      "nodes_expanded": 4,
+      "optimal": true
+    },
+    {
+      "algorithm": "Uniform Cost Search",
+      "path": "INTERNET -> WEB01 -> APP01 -> DB01",
+      "total_cost": 8.28,
+      "hops": 3,
+      "nodes_expanded": 8,
+      "optimal": true
+    },
+    {
+      "algorithm": "Breadth-First Search",
+      "path": "INTERNET -> WEB01 -> APP01 -> DB01",
+      "total_cost": 8.28,
+      "hops": 3,
+      "nodes_expanded": 7,
+      "optimal": true
+    }
+  ]
 }

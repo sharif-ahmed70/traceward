@@ -44,6 +44,8 @@ from src.finbank_env import load_finbank_systems  # noqa: E402
 
 from src.csp_solver import CSPCase, VulnerabilityTask, solve_csp  # noqa: E402
 
+from dashboard.algorithm_panels import render_astar_analysis, render_csp_analysis  # noqa: E402
+
 from src.explainability import (  # noqa: E402
 
     explain_attack_path,
@@ -502,6 +504,8 @@ def render_attack_path(attack_path_info, is_mock):
 
     render_attack_path_intelligence(attack_path_info, is_mock=is_mock)
 
+    render_astar_analysis()
+
 
 
 
@@ -510,7 +514,7 @@ def render_patch_plan(csp_result):
 
     st.header("Patch Plan")
 
-    st.caption("Feasible schedule produced by Backtracking CSP; respects team and time slot constraints.")
+    st.caption("Feasible schedule produced by Backtracking CSP (MRV, Degree, Forward Checking, AC-3) under team, dependency, maintenance-window, downtime, daily-capacity and attack-path priority constraints.")
 
 
 
@@ -584,6 +588,8 @@ def render_patch_plan(csp_result):
     render_remediation_priority_card(explanation, task_dict)
 
 
+
+    render_csp_analysis(csp_result)
 
     with st.expander("CSP contract & Infeasibility Handling"):
 

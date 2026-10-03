@@ -18,6 +18,8 @@ import pandas as pd
 
 import streamlit as st
 
+from dashboard.asset_metadata import get_asset_name
+
 from dashboard.overview_components import (
     render_soc_header,
     render_kpi_cards,

@@ -18,6 +18,7 @@ from src.kmeans_clustering import run_kmeans
 from src.graph_builder import build_graph
 from src.astar_search import run_astar
 from src.csp_solver import solve_csp
+from src.evaluation import run_evaluation
 from src.explainability import (
     explain_risk,
     explain_attack_path,
@@ -163,14 +164,20 @@ def run_pipeline():
     attack_path = run_astar(graph, start="INTERNET", goal="DB01")
     path_str = " -> ".join(attack_path["path"])
     print(f"      Critical Path Identified: {path_str}")
-    print(f"      Accumulated Path Cost: {attack_path['total_cost']}")
+    print(f"      Accumulated Path Cost: {attack_path['total_cost']} ({attack_path['heuristic']})")
+    for row in attack_path["comparison"]:
+        print(f"        - {row['algorithm']:<22} cost={row['total_cost']:<6} nodes expanded={row['nodes_expanded']}")
     print("      Saved: artifacts/astar/attack_path.json")
     print()
 
     # Step 8: CSP Remediation Scheduling & Explainability
     print("[8/8] Solving Constraint Satisfaction Problem (CSP) for Remediation...")
     csp_result = solve_csp()
-    print(f"      Remediation Solver: {csp_result['solver']} (Status: {csp_result['status']})")
+    print(f"      Remediation Solver: {csp_result['solver']} + {', '.join(csp_result['heuristics'])} (Status: {csp_result['status']})")
+    stats = csp_result["stats"]
+    print(f"      Search effort: {stats['assignments']} assignments, {stats['backtracks']} backtracks, "
+          f"{stats['constraint_checks']} constraint checks, {stats['time_ms']} ms")
+    print(f"      Constraint violations: {len(csp_result.get('violations', []))}")
     meta = csp_result.get("metadata", {})
     if meta.get("source") == "live_pipeline":
         print(f"      Pipeline Integration: Selected {meta['selected_task_count']} high-impact tasks from {meta['total_evaluated_vulnerabilities']} predictions")
@@ -179,13 +186,23 @@ def run_pipeline():
     print("      Generated Feasible Patch Schedule:")
     for task in csp_result["schedule"]:
         dep_str = f" [Prerequisite: {', '.join(task['depends_on'])}]" if task.get("depends_on") else ""
-        print(f"        - {task['time_slot']}: {task['team']} -> {task['vuln_id']} ({task['priority']} on {task['system_id']}){dep_str}")
+        print(f"        - {task['time_slot']} ({task['window']}): {task['team']} -> {task['vuln_id']} ({task['priority']} on {task['system_id']}){dep_str}")
 
     csp_out = Path("artifacts/csp/patch_schedule.json")
     csp_out.parent.mkdir(parents=True, exist_ok=True)
     with open(csp_out, "w", encoding="utf-8") as f:
         json.dump(csp_result["schedule"], f, indent=2)
-    print("      Saved: artifacts/csp/patch_schedule.json")
+    with open(csp_out.parent / "csp_result.json", "w", encoding="utf-8") as f:
+        json.dump(csp_result, f, indent=2)
+    print("      Saved: artifacts/csp/patch_schedule.json, artifacts/csp/csp_result.json")
+    print()
+
+    print("[Evaluation] Comparing A* with UCS/BFS and CSP search strategies...")
+    evaluation = run_evaluation(graph)
+    stress = evaluation["csp"][evaluation["csp"]["case"] == "stress"]
+    for _, row in stress.iterrows():
+        print(f"        - {row['strategy']:<32} backtracks={row['backtracks']}")
+    print("      Saved: artifacts/evaluation/evaluation_report.md")
     print()
 
     # Explainability demo

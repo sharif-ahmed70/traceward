@@ -1,0 +1,598 @@
+{
+  "solver": "Backtracking CSP",
+  "heuristics": [
+    "MRV",
+    "Degree",
+    "Forward Checking",
+    "AC-3"
+  ],
+  "objective": null,
+  "variables": [
+    "V0036",
+    "V0399",
+    "V0426",
+    "V0128",
+    "V0297",
+    "V0568",
+    "V0040",
+    "V0146",
+    "V0186",
+    "V0056"
+  ],
+  "domains": {
+    "V0036": [
+      {
+        "team": "Web Team",
+        "time_slot": "Mon 10:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Mon 15:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Mon 20:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Mon 23:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Tue 10:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Tue 15:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Tue 20:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Tue 23:00"
+      }
+    ],
+    "V0399": [
+      {
+        "team": "Web Team",
+        "time_slot": "Mon 10:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Mon 15:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Mon 20:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Mon 23:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Tue 10:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Tue 15:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Tue 20:00"
+      },
+      {
+        "team": "Web Team",
+        "time_slot": "Tue 23:00"
+      }
+    ],
+    "V0426": [
+      {
+        "team": "Application Team",
+        "time_slot": "Mon 10:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Mon 15:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Mon 20:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Mon 23:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Tue 10:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Tue 15:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Tue 20:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Tue 23:00"
+      }
+    ],
+    "V0128": [
+      {
+        "team": "Database Team",
+        "time_slot": "Mon 20:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Mon 23:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Tue 20:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Tue 23:00"
+      }
+    ],
+    "V0297": [
+      {
+        "team": "Database Team",
+        "time_slot": "Mon 20:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Mon 23:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Tue 20:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Tue 23:00"
+      }
+    ],
+    "V0568": [
+      {
+        "team": "Application Team",
+        "time_slot": "Mon 10:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Mon 15:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Mon 20:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Mon 23:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Tue 10:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Tue 15:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Tue 20:00"
+      },
+      {
+        "team": "Application Team",
+        "time_slot": "Tue 23:00"
+      }
+    ],
+    "V0040": [
+      {
+        "team": "Database Team",
+        "time_slot": "Mon 20:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Mon 23:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Tue 20:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Tue 23:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Wed 20:00"
+      },
+      {
+        "team": "Database Team",
+        "time_slot": "Wed 23:00"
+      }
+    ],
+    "V0146": [
+      {
+        "team": "Network Team",
+        "time_slot": "Mon 20:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Mon 23:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Tue 20:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Tue 23:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Wed 20:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Wed 23:00"
+      }
+    ],
+    "V0186": [
+      {
+        "team": "Network Team",
+        "time_slot": "Mon 10:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Mon 15:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Mon 20:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Mon 23:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Tue 10:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Tue 15:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Tue 20:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Tue 23:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Wed 10:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Wed 15:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Wed 20:00"
+      },
+      {
+        "team": "Network Team",
+        "time_slot": "Wed 23:00"
+      }
+    ],
+    "V0056": [
+      {
+        "team": "IT Support Team",
+        "time_slot": "Mon 10:00"
+      },
+      {
+        "team": "IT Support Team",
+        "time_slot": "Mon 15:00"
+      },
+      {
+        "team": "IT Support Team",
+        "time_slot": "Mon 20:00"
+      },
+      {
+        "team": "IT Support Team",
+        "time_slot": "Mon 23:00"
+      },
+      {
+        "team": "IT Support Team",
+        "time_slot": "Tue 10:00"
+      },
+      {
+        "team": "IT Support Team",
+        "time_slot": "Tue 15:00"
+      },
+      {
+        "team": "IT Support Team",
+        "time_slot": "Tue 20:00"
+      },
+      {
+        "team": "IT Support Team",
+        "time_slot": "Tue 23:00"
+      },
+      {
+        "team": "IT Support Team",
+        "time_slot": "Wed 10:00"
+      },
+      {
+        "team": "IT Support Team",
+        "time_slot": "Wed 15:00"
+      },
+      {
+        "team": "IT Support Team",
+        "time_slot": "Wed 20:00"
+      },
+      {
+        "team": "IT Support Team",
+        "time_slot": "Wed 23:00"
+      }
+    ]
+  },
+  "constraints": [
+    "Each vulnerability is assigned to its required team.",
+    "A team handles at most one vulnerability in a time slot.",
+    "Dependencies must be scheduled before their dependent vulnerability.",
+    "Maintenance window: DB01, BACKUP01, AUTH01 may only be patched outside business hours (09:00-18:00).",
+    "Downtime restriction: no two of AUTH01, DB01, BACKUP01 offline in the same slot.",
+    "Resource limit: at most 4 patches per day.",
+    "Priority: A* attack-path vulnerabilities must be patched by Tue 23:00."
+  ],
+  "stats": {
+    "assignments": 10,
+    "backtracks": 0,
+    "constraint_checks": 587,
+    "ac3_pruned": 8,
+    "fc_pruned": 38,
+    "initial_domain_size": 76,
+    "time_ms": 0.391
+  },
+  "metadata": {
+    "source": "live_pipeline",
+    "total_evaluated_vulnerabilities": 240,
+    "selected_task_count": 10,
+    "pending_backlog_count": 230,
+    "attack_path_systems": [
+      "WEB01",
+      "APP01",
+      "DB01"
+    ],
+    "selection_rule": "Top 2 most severe vulnerabilities on each A* attack-path system (WEB01, APP01, DB01) and top 1 on every other system. Dependencies enforce perimeter fixes before internal fixes.",
+    "selected_tasks": [
+      {
+        "vuln_id": "V0036",
+        "system_id": "WEB01",
+        "priority": "Critical",
+        "team": "Web Team",
+        "depends_on": [],
+        "on_attack_path": true
+      },
+      {
+        "vuln_id": "V0399",
+        "system_id": "WEB01",
+        "priority": "Critical",
+        "team": "Web Team",
+        "depends_on": [],
+        "on_attack_path": true
+      },
+      {
+        "vuln_id": "V0426",
+        "system_id": "APP01",
+        "priority": "Critical",
+        "team": "Application Team",
+        "depends_on": [
+          "V0036"
+        ],
+        "on_attack_path": true
+      },
+      {
+        "vuln_id": "V0568",
+        "system_id": "APP01",
+        "priority": "Critical",
+        "team": "Application Team",
+        "depends_on": [
+          "V0036"
+        ],
+        "on_attack_path": true
+      },
+      {
+        "vuln_id": "V0128",
+        "system_id": "DB01",
+        "priority": "Critical",
+        "team": "Database Team",
+        "depends_on": [
+          "V0426"
+        ],
+        "on_attack_path": true
+      },
+      {
+        "vuln_id": "V0297",
+        "system_id": "DB01",
+        "priority": "Critical",
+        "team": "Database Team",
+        "depends_on": [
+          "V0426"
+        ],
+        "on_attack_path": true
+      },
+      {
+        "vuln_id": "V0146",
+        "system_id": "AUTH01",
+        "priority": "Critical",
+        "team": "Network Team",
+        "depends_on": [],
+        "on_attack_path": false
+      },
+      {
+        "vuln_id": "V0040",
+        "system_id": "BACKUP01",
+        "priority": "Critical",
+        "team": "Database Team",
+        "depends_on": [
+          "V0128"
+        ],
+        "on_attack_path": false
+      },
+      {
+        "vuln_id": "V0056",
+        "system_id": "EMP01",
+        "priority": "Critical",
+        "team": "IT Support Team",
+        "depends_on": [
+          "V0186"
+        ],
+        "on_attack_path": false
+      },
+      {
+        "vuln_id": "V0186",
+        "system_id": "VPN01",
+        "priority": "Critical",
+        "team": "Network Team",
+        "depends_on": [],
+        "on_attack_path": false
+      }
+    ]
+  },
+  "status": "feasible",
+  "schedule": [
+    {
+      "vuln_id": "V0036",
+      "system_id": "WEB01",
+      "priority": "Critical",
+      "team": "Web Team",
+      "time_slot": "Mon 10:00",
+      "day": "Mon",
+      "window": "Business hours",
+      "on_attack_path": true,
+      "depends_on": []
+    },
+    {
+      "vuln_id": "V0426",
+      "system_id": "APP01",
+      "priority": "Critical",
+      "team": "Application Team",
+      "time_slot": "Mon 15:00",
+      "day": "Mon",
+      "window": "Business hours",
+      "on_attack_path": true,
+      "depends_on": [
+        "V0036"
+      ]
+    },
+    {
+      "vuln_id": "V0128",
+      "system_id": "DB01",
+      "priority": "Critical",
+      "team": "Database Team",
+      "time_slot": "Mon 20:00",
+      "day": "Mon",
+      "window": "After hours",
+      "on_attack_path": true,
+      "depends_on": [
+        "V0426"
+      ]
+    },
+    {
+      "vuln_id": "V0297",
+      "system_id": "DB01",
+      "priority": "Critical",
+      "team": "Database Team",
+      "time_slot": "Mon 23:00",
+      "day": "Mon",
+      "window": "After hours",
+      "on_attack_path": true,
+      "depends_on": [
+        "V0426"
+      ]
+    },
+    {
+      "vuln_id": "V0568",
+      "system_id": "APP01",
+      "priority": "Critical",
+      "team": "Application Team",
+      "time_slot": "Tue 10:00",
+      "day": "Tue",
+      "window": "Business hours",
+      "on_attack_path": true,
+      "depends_on": [
+        "V0036"
+      ]
+    },
+    {
+      "vuln_id": "V0399",
+      "system_id": "WEB01",
+      "priority": "Critical",
+      "team": "Web Team",
+      "time_slot": "Tue 10:00",
+      "day": "Tue",
+      "window": "Business hours",
+      "on_attack_path": true,
+      "depends_on": []
+    },
+    {
+      "vuln_id": "V0146",
+      "system_id": "AUTH01",
+      "priority": "Critical",
+      "team": "Network Team",
+      "time_slot": "Tue 20:00",
+      "day": "Tue",
+      "window": "After hours",
+      "on_attack_path": false,
+      "depends_on": []
+    },
+    {
+      "vuln_id": "V0040",
+      "system_id": "BACKUP01",
+      "priority": "Critical",
+      "team": "Database Team",
+      "time_slot": "Tue 23:00",
+      "day": "Tue",
+      "window": "After hours",
+      "on_attack_path": false,
+      "depends_on": [
+        "V0128"
+      ]
+    },
+    {
+      "vuln_id": "V0186",
+      "system_id": "VPN01",
+      "priority": "Critical",
+      "team": "Network Team",
+      "time_slot": "Wed 10:00",
+      "day": "Wed",
+      "window": "Business hours",
+      "on_attack_path": false,
+      "depends_on": []
+    },
+    {
+      "vuln_id": "V0056",
+      "system_id": "EMP01",
+      "priority": "Critical",
+      "team": "IT Support Team",
+      "time_slot": "Wed 15:00",
+      "day": "Wed",
+      "window": "Business hours",
+      "on_attack_path": false,
+      "depends_on": [
+        "V0186"
+      ]
+    }
+  ],
+  "violations": []
+}
