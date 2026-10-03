@@ -21,20 +21,66 @@ def load_network_topology(network_path="data/network/network.json"):
     return data.get("nodes", []), data.get("edges", [])
 
 
+def vulnerability_ease(row):
+    """Exploitation ease of one encoded vulnerability in [0, 1] (1 = trivial to exploit).
+
+    Averages the four attacker-side CVSS factors: low attack complexity, no privileges
+    required, no user interaction, and high exploit probability.
+    """
+    return (
+        (1 - row["attack_complexity"])
+        + (1 - row["privileges_required"] / 2)
+        + (1 - row["user_interaction"])
+        + row["exploit_probability"]
+    ) / 4
+
+
+def load_exploitability(vulns_path="data/processed/vulnerabilities_processed.csv"):
+    """Return per-system exploitability metrics from the encoded vulnerability inventory.
+
+    Returns:
+        (exploit_map, entry_vuln_map):
+          - exploit_map: system_id -> mean exploitation ease of its vulnerabilities
+          - entry_vuln_map: system_id -> details of the easiest vulnerability on that system
+    """
+    path = Path(vulns_path)
+    if not path.exists():
+        return {}, {}
+
+    df = pd.read_csv(path)
+    df["ease"] = df.apply(vulnerability_ease, axis=1)
+
+    exploit_map = {}
+    entry_vuln_map = {}
+    for system_id, group in df.groupby("system_id"):
+        exploit_map[system_id] = round(float(group["ease"].mean()), 3)
+        best = group.sort_values(["ease", "vuln_id"], ascending=[False, True]).iloc[0]
+        entry_vuln_map[system_id] = {
+            "vuln_id": best["vuln_id"],
+            "ease": round(float(best["ease"]), 3),
+            "exploit_probability": float(best["exploit_probability"]),
+        }
+    return exploit_map, entry_vuln_map
+
+
 def build_graph(
     network_path="data/network/network.json",
     risk_summary_path="artifacts/risk/system_risk_summary.csv",
+    vulns_path="data/processed/vulnerabilities_processed.csv",
 ):
     """Construct an annotated directed graph from network topology and risk metrics.
 
     Returns:
         dict containing:
           - nodes: list of node dicts with attached risk metrics
-          - edges: list of edge dicts (source, target, weight)
+          - edges: list of edge dicts (source, target, base_cost)
           - adjacency: dict mapping node_id -> list of neighboring node_ids
-          - risk_map: dict mapping system_id -> normalized_risk score
+          - risk_map: dict mapping system_id -> normalized_risk score (from KNN predictions)
+          - exploit_map: dict mapping system_id -> mean CVSS exploitation ease
+          - entry_vuln_map: dict mapping system_id -> easiest vulnerability on that system
     """
     nodes, edges = load_network_topology(network_path)
+    exploit_map, entry_vuln_map = load_exploitability(vulns_path)
 
     # Load system risk metrics if available
     risk_map = {}
@@ -60,6 +106,7 @@ def build_graph(
         annotated_nodes.append({
             **node,
             "risk_score": node_risk,
+            "exploitability": exploit_map.get(node_id),
         })
 
     return {
@@ -67,6 +114,8 @@ def build_graph(
         "edges": edges,
         "adjacency": adjacency,
         "risk_map": risk_map,
+        "exploit_map": exploit_map,
+        "entry_vuln_map": entry_vuln_map,
     }
 
 

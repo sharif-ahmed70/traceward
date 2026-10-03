@@ -1,0 +1,4 @@
+algorithm,path,total_cost,hops,nodes_expanded,optimal
+A*,INTERNET -> WEB01 -> APP01 -> DB01,8.28,3,4,True
+Uniform Cost Search,INTERNET -> WEB01 -> APP01 -> DB01,8.28,3,8,True
+Breadth-First Search,INTERNET -> WEB01 -> APP01 -> DB01,8.28,3,7,True

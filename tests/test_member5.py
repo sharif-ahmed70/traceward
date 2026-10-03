@@ -15,14 +15,16 @@ class TestMember5(unittest.TestCase):
         result = solve_csp()
         self.assertEqual(result["status"], "feasible")
         self.assertIsNone(result["objective"])
-        self.assertEqual(len(result["schedule"]), 5)
+        self.assertEqual(len(result["schedule"]), result["metadata"]["selected_task_count"])
+        self.assertEqual(result["violations"], [])
 
         occupied = [(item["team"], item["time_slot"]) for item in result["schedule"]]
         self.assertEqual(len(occupied), len(set(occupied)))
 
     def test_csp_dependencies_are_ordered(self):
         result = solve_csp()
-        index = {slot: i for i, slot in enumerate(["Mon 09:00", "Mon 14:00", "Tue 09:00", "Tue 14:00", "Wed 09:00"])}
+        from src.csp_solver import load_constraint_config
+        index = {slot: i for i, slot in enumerate(load_constraint_config()["time_slots"])}
         slots = {item["vuln_id"]: index[item["time_slot"]] for item in result["schedule"]}
         has_deps = False
         for item in result["schedule"]:
