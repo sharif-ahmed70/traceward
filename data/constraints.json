@@ -1,0 +1,20 @@
+{
+  "time_slots": [
+    "Mon 10:00", "Mon 15:00", "Mon 20:00", "Mon 23:00",
+    "Tue 10:00", "Tue 15:00", "Tue 20:00", "Tue 23:00",
+    "Wed 10:00", "Wed 15:00", "Wed 20:00", "Wed 23:00"
+  ],
+  "business_hours": [9, 18],
+  "after_hours_only_systems": ["DB01", "BACKUP01", "AUTH01"],
+  "max_patches_per_day": 4,
+  "no_concurrent_downtime": ["AUTH01", "DB01", "BACKUP01"],
+  "attack_path_deadline": "Tue 23:00",
+  "tasks_per_attack_path_system": 2,
+  "tasks_per_other_system": 1,
+  "dependencies": [
+    ["APP01", "WEB01"],
+    ["DB01", "APP01"],
+    ["BACKUP01", "DB01"],
+    ["EMP01", "VPN01"]
+  ]
+}

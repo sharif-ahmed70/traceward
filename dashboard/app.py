@@ -1,84 +1,296 @@
-"""Streamlit dashboard scaffold for TraceWard Week 1.
+"""Streamlit dashboard for TraceWard.
 
-The dashboard intentionally uses contract-compatible mock data. Later members'
-K-Means, KNN and A* artifacts can replace these inputs without changing the
-section structure.
+
+
+Displays vulnerability risk analysis, structural clusters, defensive attack path,
+
+and smart CSP remediation schedule.
+
+Supports both live pipeline artifacts and contract-compatible mock fallbacks.
+
 """
+
+
 
 from __future__ import annotations
 
+
+
+import json
+
 import sys
+
 from pathlib import Path
 
+
+
 import pandas as pd
+
 import streamlit as st
 
+
+
 ROOT = Path(__file__).resolve().parents[1]
+
 if str(ROOT) not in sys.path:
+
     sys.path.insert(0, str(ROOT))
 
-from src.csp_solver import solve_csp  # noqa: E402
+
+
+from src.finbank_simulation import run_finbank_simulation  # noqa: E402
+
+from src.finbank_env import load_finbank_systems  # noqa: E402
+
+from src.csp_solver import CSPCase, VulnerabilityTask, solve_csp  # noqa: E402
+
+from dashboard.algorithm_panels import render_astar_analysis, render_csp_analysis  # noqa: E402
+
 from src.explainability import (  # noqa: E402
+
     explain_attack_path,
+
     explain_patch_priority,
+
     explain_risk,
+
+    explain_vulnerability,
+
+)
+
+from src.knn_classifier import (  # noqa: E402
+
+    FEATURE_COLUMNS,
+
+    predict_single_vulnerability,
+
+)
+
+from src.what_if_simulation import simulate_patch_impact  # noqa: E402
+
+
+
+st.set_page_config(page_title="TraceWard SOC", page_icon="🛡️", layout="wide")
+
+
+
+try:
+
+    from dashboard.ui import (
+
+        _generate_attack_graph_dot,
+
+        inject_dark_theme,
+
+        inject_theme,
+
+        render_attack_path_intelligence,
+
+        render_global_header,
+
+        render_modern_overview,
+
+        render_remediation_priority_card,
+
+        render_sidebar_navigation,
+
+        render_structured_explanation_card,
+
+    )
+
+except Exception:
+    pass
+
+from dashboard.asset_metadata import (
+    CAMPUS_ASSETS,
+    UNIVERSITY_INFO,
+    format_asset_label,
+    get_all_assets,
+    get_asset,
+    get_asset_name,
+    get_system_business_impact,
 )
 
 
-st.set_page_config(page_title="TraceWard", page_icon="🛡️", layout="wide")
 
-# Contract-compatible mock inputs. These are deliberately simple and can be
-# replaced with artifacts from the other members later.
+
+
+# Fallback mock data
+
 MOCK_CLUSTERS = pd.DataFrame(
+
     [
+
         {"vuln_id": "VULN-001", "system_id": "WEB01", "cluster_id": 2},
+
         {"vuln_id": "VULN-002", "system_id": "DB01", "cluster_id": 1},
+
         {"vuln_id": "VULN-003", "system_id": "APP01", "cluster_id": 2},
+
         {"vuln_id": "VULN-004", "system_id": "BACKUP01", "cluster_id": 0},
+
         {"vuln_id": "VULN-005", "system_id": "VPN01", "cluster_id": 1},
+
     ]
+
 )
+
+
 
 MOCK_RISK = pd.DataFrame(
+
     [
+
         {"vuln_id": "VULN-001", "system_id": "WEB01", "actual_risk": "Critical", "predicted_risk": "Critical"},
+
         {"vuln_id": "VULN-002", "system_id": "DB01", "actual_risk": "High", "predicted_risk": "High"},
+
         {"vuln_id": "VULN-003", "system_id": "APP01", "actual_risk": "High", "predicted_risk": "Medium"},
+
         {"vuln_id": "VULN-004", "system_id": "BACKUP01", "actual_risk": "Medium", "predicted_risk": "Medium"},
+
         {"vuln_id": "VULN-005", "system_id": "VPN01", "actual_risk": "Medium", "predicted_risk": "High"},
+
     ]
+
 )
 
+
+
 MOCK_PATH = explain_attack_path(
+
     "INTERNET", "DB01", ["INTERNET", "WEB01", "APP01", "DB01"], 8.5
+
 )
+
+
+
 
 
 @st.cache_data
+
+def load_clusters():
+
+    p = Path("artifacts/kmeans/cluster_assignments.csv")
+
+    if p.exists():
+
+        return pd.read_csv(p), False
+
+    return MOCK_CLUSTERS, True
+
+
+
+
+
+@st.cache_data
+
+def load_risk():
+
+    p = Path("artifacts/knn/predictions.csv")
+
+    if p.exists():
+
+        return pd.read_csv(p), False
+
+    return MOCK_RISK, True
+
+
+
+
+
+@st.cache_data
+
+def load_attack_path():
+
+    p = Path("artifacts/astar/attack_path.json")
+
+    if p.exists():
+
+        try:
+
+            with open(p, "r", encoding="utf-8") as f:
+
+                data = json.load(f)
+
+            return explain_attack_path(data["start"], data["goal"], data["path"], data.get("total_cost")), False
+
+        except Exception:
+
+            pass
+
+    return MOCK_PATH, True
+
+
+
+
+
+@st.cache_data
+
 def get_csp_result():
+
     return solve_csp()
 
 
-def render_overview(csp_result):
-    st.header("Overview")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Vulnerabilities", len(MOCK_RISK))
-    col2.metric("Systems", MOCK_RISK["system_id"].nunique())
-    col3.metric("Risk levels", MOCK_RISK["predicted_risk"].nunique())
-    col4.metric("Patch tasks", len(csp_result["schedule"]))
-
-    st.info(
-        "Week 1 scaffold: all displayed model outputs are mock, contract-compatible data. "
-        "The CSP schedule is generated by the Backtracking solver."
-    )
 
 
-def render_clusters():
+
+def render_overview(risk_df, csp_result, attack_path_info=None, is_mock_risk=False):
+
+    if attack_path_info is None:
+
+        attack_path_info, _ = load_attack_path()
+
+    try:
+
+        render_modern_overview(
+
+            risk_df=risk_df,
+
+            csp_result=csp_result,
+
+            attack_path_info=attack_path_info,
+
+            is_mock_risk=is_mock_risk,
+
+        )
+
+    except Exception:
+
+        # Graceful fallback to legacy overview if modern renderer encounters unexpected data format
+
+        st.header("Overview")
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        col1.metric("Vulnerabilities", len(risk_df))
+
+        col2.metric("Systems", risk_df["system_id"].nunique() if "system_id" in risk_df.columns else 0)
+
+        col3.metric("Risk levels", risk_df["predicted_risk"].nunique() if "predicted_risk" in risk_df.columns else 0)
+
+        col4.metric("Patch tasks", len(csp_result.get("schedule", [])))
+
+        source_tag = "Mock scaffold data" if is_mock_risk else "Live ML pipeline artifacts"
+
+        st.info(f"Data source: **{source_tag}**. The CSP remediation schedule is generated by Backtracking CSP.")
+
+
+
+
+
+def render_clusters(clusters_df, is_mock):
     st.header("Clusters")
-    st.caption("Mock K-Means output. Cluster IDs are descriptive and are not risk labels.")
-    st.dataframe(MOCK_CLUSTERS, width="stretch", hide_index=True)
+    tag = "Mock K-Means output" if is_mock else "Live K-Means cluster assignments"
+    st.caption(f"{tag}. Cluster IDs represent structural profiles and are not severity labels.")
+
+    display_clusters = clusters_df.head(100).copy()
+    if "system_id" in display_clusters.columns:
+        display_clusters.insert(2, "campus_asset", display_clusters["system_id"].apply(lambda sid: get_asset_name(sid, short=True)))
+    st.dataframe(display_clusters, width="stretch", hide_index=True)
+
     summary = (
-        MOCK_CLUSTERS.groupby("cluster_id")
+        clusters_df.groupby("cluster_id")
         .agg(vulnerabilities=("vuln_id", "count"), systems=("system_id", "nunique"))
         .reset_index()
     )
@@ -86,101 +298,1185 @@ def render_clusters():
     st.dataframe(summary, width="stretch", hide_index=True)
 
 
-def render_risk_prediction():
+def render_risk_prediction(risk_df, clusters_df, is_mock):
     st.header("Risk Prediction")
-    st.caption("Mock KNN output using the agreed prediction contract.")
-    st.dataframe(MOCK_RISK, width="stretch", hide_index=True)
+    tag = "Mock KNN output" if is_mock else "Live KNN predictions"
+    st.caption(f"{tag} using the agreed 7-feature security contract.")
 
-    selected = st.selectbox("Explain vulnerability", MOCK_RISK["vuln_id"].tolist())
-    row = MOCK_RISK.loc[MOCK_RISK["vuln_id"] == selected].iloc[0]
-    cluster_row = MOCK_CLUSTERS.loc[MOCK_CLUSTERS["vuln_id"] == selected].iloc[0]
-    explanation = explain_risk(
-        row["vuln_id"],
-        row["system_id"],
-        row["predicted_risk"],
-        risk_factors=[f"Predicted class: {row['predicted_risk']}", f"System: {row['system_id']}"],
-        cluster_id=int(cluster_row["cluster_id"]),
-    )
-    st.write(explanation["summary"])
-    for factor in explanation["evidence"]:
-        st.write(f"- {factor}")
-    st.caption(explanation["cluster_context"])
+    display_risk = risk_df.head(100).copy()
+    if "system_id" in display_risk.columns:
+        display_risk.insert(2, "campus_asset", display_risk["system_id"].apply(lambda sid: get_asset_name(sid, short=True)))
+    st.dataframe(display_risk, width="stretch", hide_index=True)
+
+    vuln_list = risk_df["vuln_id"].tolist()
+    if vuln_list:
+        selected = st.selectbox(
+            "Explain vulnerability",
+            vuln_list[:50],
+            format_func=lambda vid: f"{vid} — {risk_df.loc[risk_df['vuln_id'] == vid, 'system_id'].values[0]} ({get_asset_name(risk_df.loc[risk_df['vuln_id'] == vid, 'system_id'].values[0], short=True)})",
+        )
+        row = risk_df.loc[risk_df["vuln_id"] == selected].iloc[0]
+        cluster_matches = clusters_df.loc[clusters_df["vuln_id"] == selected]
+        cluster_id = int(cluster_matches.iloc[0]["cluster_id"]) if not cluster_matches.empty else None
+
+        explanation = explain_vulnerability(
+            row["vuln_id"],
+            row["system_id"],
+            row["predicted_risk"],
+            cluster_id=cluster_id,
+        )
+
+        sys_id = row["system_id"]
+        asset_info = get_asset(sys_id)
+        st.markdown(
+            f"""
+            <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; padding: 0.75rem 1rem; margin: 0.5rem 0 0.85rem 0;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                    <strong style="color: #60a5fa; font-size: 0.95rem;">🏛️ Targeted Campus Asset: {sys_id} — {asset_info['name']}</strong>
+                    <span style="font-size: 0.75rem; color: #94a3b8;">Department: {asset_info['owner']}</span>
+                </div>
+                <div style="font-size: 0.82rem; color: var(--tw-text-primary); margin-top: 0.35rem;">
+                    <strong>Asset Purpose:</strong> {asset_info['purpose']}
+                </div>
+                <div style="font-size: 0.82rem; color: #f87171; margin-top: 0.35rem;">
+                    <strong>🚨 University Business Impact:</strong> {asset_info['business_impact']}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.write(explanation["summary"])
+        for factor in explanation["evidence"]:
+            st.write(f"- {factor}")
+        st.caption(explanation["cluster_context"])
+        render_structured_explanation_card(explanation)
 
 
-def render_attack_path():
+
+    st.markdown("---")
+
+    st.subheader("Interactive Model Inference (Predict New Vulnerability)")
+
+    st.caption("Submit custom security features to the fitted KNN pipeline in real-time.")
+
+
+
+    with st.form("new_vuln_prediction_form"):
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+
+            ac_map = {"Low (0)": 0, "High (1)": 1}
+
+            ac_choice = st.selectbox("Attack Complexity", list(ac_map.keys()), index=0)
+
+            pr_map = {"None (0)": 0, "Low (1)": 1, "High (2)": 2}
+
+            pr_choice = st.selectbox("Privileges Required", list(pr_map.keys()), index=0)
+
+            ui_map = {"None (0)": 0, "Required (1)": 1}
+
+            ui_choice = st.selectbox("User Interaction", list(ui_map.keys()), index=0)
+
+        with col2:
+
+            ci_map = {"None (0)": 0, "Low (1)": 1, "High (2)": 2}
+
+            ci_choice = st.selectbox("Confidentiality Impact", list(ci_map.keys()), index=2)
+
+            ii_choice = st.selectbox("Integrity Impact", list(ci_map.keys()), index=2)
+
+            ai_choice = st.selectbox("Availability Impact", list(ci_map.keys()), index=2)
+
+        with col3:
+
+            exp_prob = st.slider("Exploit Probability", min_value=0.0, max_value=1.0, value=0.85, step=0.05)
+
+            target_sys = st.selectbox(
+                "Target System",
+                ["WEB01", "APP01", "AUTH01", "VPN01", "EMP01", "DB01", "BACKUP01"],
+                format_func=lambda sid: f"{sid} — {get_asset_name(sid, short=True)}",
+            )
+
+            submit_pred = st.form_submit_button("Predict Risk Class")
+
+
+
+    if submit_pred:
+
+        custom_features = {
+
+            "attack_complexity": ac_map[ac_choice],
+
+            "privileges_required": pr_map[pr_choice],
+
+            "user_interaction": ui_map[ui_choice],
+
+            "confidentiality_impact": ci_map[ci_choice],
+
+            "integrity_impact": ci_map[ii_choice],
+
+            "availability_impact": ci_map[ai_choice],
+
+            "exploit_probability": exp_prob,
+
+        }
+
+        try:
+
+            pred_result = predict_single_vulnerability(custom_features)
+
+            p_class = pred_result["predicted_risk"]
+
+            p_probs = pred_result.get("probabilities", {})
+
+
+
+            st.success(f"Predicted Risk Level: **{p_class}**")
+
+            p_cols = st.columns(4)
+
+            for idx, c_name in enumerate(["Low", "Medium", "High", "Critical"]):
+
+                c_vote = p_probs.get(c_name, 0.0)
+
+                p_cols[idx].metric(f"{c_name} Vote Share", f"{c_vote * 100:.1f}%")
+
+
+
+            st.caption(
+
+                "Metric definition: Values represent KNN neighbor vote shares (fraction of K=3 nearest training instances "
+
+                "assigned to each class). These are uncalibrated vote shares, not Bayesian posterior probabilities or certainty guarantees."
+
+            )
+
+
+
+            exp = explain_vulnerability(
+
+                "NEW-VULN-PRED",
+
+                target_sys,
+
+                p_class,
+
+                features=custom_features,
+
+                vote_share=p_probs.get(p_class, 1.0),
+
+            )
+
+            st.info(
+
+                f"**Explanation:** Classification decision is **{p_class}** based on distance in the 7-dimensional "
+
+                "standardized feature space to nearest training instances. Distance metrics reflect geometric similarity "
+
+                "under CVSS metric distributions, not single-feature causal relationships."
+
+            )
+
+            render_structured_explanation_card(exp)
+
+        except Exception as e:
+
+            st.error(f"Inference failed: {e}")
+
+
+
+
+
+def render_attack_path(attack_path_info, is_mock):
+
     st.header("Attack Graph / Path")
-    st.caption("Mock A* output for defensive network-risk analysis.")
-    st.code(" → ".join(MOCK_PATH["path"]))
-    st.metric("Total path cost", MOCK_PATH["total_cost"])
-    st.write(MOCK_PATH["summary"])
-    st.caption(MOCK_PATH["human_readable"])
+
+    tag = "Mock A* path" if is_mock else "Live A* attack path"
+
+    st.caption(f"{tag} for defensive network-risk analysis.")
+
+    st.info(f"**Critical Corridor Identification:** {attack_path_info.get('summary', '')}")
+
+    st.caption(attack_path_info.get("human_readable", ""))
+
+    render_attack_path_intelligence(attack_path_info, is_mock=is_mock)
+
+    render_astar_analysis()
+
+
+
 
 
 def render_patch_plan(csp_result):
-    st.header("Patch Plan")
-    st.caption("Feasible Week 1 schedule produced by Backtracking CSP; it is not claimed to be optimal.")
-    schedule = pd.DataFrame(csp_result["schedule"])
-    st.dataframe(schedule, width="stretch", hide_index=True)
 
-    selected = st.selectbox("Explain patch task", schedule["vuln_id"].tolist(), key="patch_task")
+    st.header("Patch Plan")
+
+    st.caption("Feasible schedule produced by Backtracking CSP (MRV, Degree, Forward Checking, AC-3) under team, dependency, maintenance-window, downtime, daily-capacity and attack-path priority constraints.")
+
+
+
+    if csp_result.get("status") == "infeasible":
+
+        st.error(f"⚠️ CSP Infeasibility Detected: {csp_result.get('message', 'No feasible schedule exists.')}")
+
+        return
+
+
+
+    meta = csp_result.get("metadata", {})
+
+    if meta.get("source") == "live_pipeline":
+
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric("Scheduled Tasks", meta.get("selected_task_count", len(csp_result["schedule"])))
+
+        c2.metric("Pending Backlog", meta.get("pending_backlog_count", 0))
+
+        c3.metric("Evaluated Predictions", meta.get("total_evaluated_vulnerabilities", len(csp_result["schedule"])))
+
+        st.caption(
+
+            f"**Selection Rule:** {meta.get('selection_rule', 'Attack-path aligned priority tasks.')} "
+
+            "Remediation is partitioned into operational windows; non-scheduled items remain in the pending queue."
+
+        )
+
+
+
+    schedule = pd.DataFrame(csp_result["schedule"])
+    display_sched = schedule.copy()
+    if not display_sched.empty and "system_id" in display_sched.columns:
+        display_sched.insert(2, "campus_asset", display_sched["system_id"].apply(lambda sid: get_asset_name(sid, short=True)))
+    st.dataframe(display_sched, width="stretch", hide_index=True)
+
+    selected = st.selectbox(
+        "Explain patch task",
+        schedule["vuln_id"].tolist(),
+        format_func=lambda vid: f"{vid} — {schedule.loc[schedule['vuln_id'] == vid, 'system_id'].values[0]} ({get_asset_name(schedule.loc[schedule['vuln_id'] == vid, 'system_id'].values[0], short=True)})",
+        key="patch_task",
+    )
     row = schedule.loc[schedule["vuln_id"] == selected].iloc[0]
+    task_dict = row.to_dict()
     explanation = explain_patch_priority(
         row["vuln_id"],
         row["system_id"],
         row["priority"],
-        reason="Priority comes from the mock upstream remediation input.",
+        reason="Priority comes from upstream risk rating and attack-path alignment.",
         scheduled_slot=row["time_slot"],
         team=row["team"],
+        depends_on=task_dict.get("depends_on", []),
     )
-    st.write(explanation["summary"])
 
-    with st.expander("CSP contract"):
+    sys_id = row["system_id"]
+    asset_info = get_asset(sys_id)
+    st.markdown(
+        f"""
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 0.65rem 0.85rem; margin: 0.5rem 0 0.75rem 0; font-size: 0.8rem;">
+            <span style="color: #34d399; font-weight: 700;">🛡️ Remediation Target:</span> <strong>{sys_id} — {asset_info['name']}</strong> ({asset_info['owner']})<br/>
+            <span style="color: #fca5a5;"><strong>Campus Business Risk if Deferred:</strong> {asset_info['business_impact']}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.write(explanation["summary"])
+    render_remediation_priority_card(explanation, task_dict)
+
+
+
+    render_csp_analysis(csp_result)
+
+    with st.expander("CSP contract & Infeasibility Handling"):
+
         st.write("Variables", csp_result["variables"])
+
         st.write("Domains", csp_result["domains"])
+
         st.write("Constraints")
+
         for constraint in csp_result["constraints"]:
+
             st.write(f"- {constraint}")
 
 
+
+        st.markdown("---")
+
+        st.caption("Test constraint enforcement: Simulate overconstrained schedule (2 tasks for 1 team in 1 slot)")
+
+        if st.button("Test Infeasible Scenario"):
+
+            infeasible_case = CSPCase(
+
+                vulnerabilities=(
+
+                    VulnerabilityTask("VULN-001", "WEB01", "Critical", "Web Team"),
+
+                    VulnerabilityTask("VULN-003", "APP01", "High", "Web Team"),
+
+                ),
+
+                available_teams=("Web Team",),
+
+                time_slots=("Mon 09:00",),
+
+            )
+
+            inf_res = solve_csp(infeasible_case, raise_on_infeasible=False)
+
+            if inf_res["status"] == "infeasible":
+
+                st.warning(f"Solver correctly identified infeasibility: {inf_res['message']}")
+
+
+
+
+
+def _build_remediation_explanation(task, result, systems):
+
+    system_id = task.get("system_id", "")
+
+    vuln_id = task.get("vuln_id", "")
+
+    priority = task.get("priority", "")
+
+    depends_on = task.get("depends_on", [])
+
+
+
+    system_info = systems.get(system_id, {})
+
+    internet_exposed = bool(system_info.get("internet_exposed", False))
+
+    criticality = system_info.get("criticality", 1)
+
+    is_critical_system = criticality >= 4
+
+
+
+    attack_path = result.attack_path.get("simulated_attack_path", [])
+
+    on_path = system_id in attack_path
+
+    affected = system_id in result.affected_systems
+
+    is_critical_asset = system_id in result.incident.get("critical_assets_affected", [])
+
+    is_entry = system_id == result.incident.get("entry_point")
+
+
+
+    reasons = []
+
+    if is_entry:
+
+        reasons.append("it is the simulated entry point")
+
+    if affected:
+
+        reasons.append("it is affected by the simulated incident")
+
+    if on_path:
+
+        reasons.append("it is located on the simulated attack route")
+
+    if is_critical_asset:
+
+        reasons.append("it is an important asset")
+
+    if is_critical_system:
+
+        reasons.append("it is a critical system")
+
+    if internet_exposed:
+
+        reasons.append("it is internet-facing")
+
+    if priority in ("High", "Critical"):
+
+        reasons.append("it has a high or critical vulnerability risk")
+
+    if depends_on:
+
+        reasons.append("it has dependencies with other remediation items")
+
+
+
+    if reasons:
+
+        if len(reasons) == 1:
+
+            reason_text = reasons[0]
+
+        elif len(reasons) == 2:
+
+            reason_text = " and ".join(reasons)
+
+        else:
+
+            reason_text = ", ".join(reasons[:-1]) + ", and " + reasons[-1]
+
+        return f"{system_id} is prioritized because {reason_text}."
+
+    return f"{system_id} is included in the remediation schedule ({vuln_id}, {priority} priority)."
+
+
+
+
+
 def render_what_if():
-    st.header("What-If Analysis")
-    st.caption("Week 1 UI scaffold for future scenario analysis. No persistent changes are made.")
-    priority = st.selectbox("Mock priority scenario", ["Keep current priorities", "Treat VULN-004 as High"])
-    extra_team = st.checkbox("Mock: add one temporary Database Team slot")
-    st.write(f"Scenario: {priority}")
-    st.write(f"Additional capacity: {'Yes' if extra_team else 'No'}")
-    st.info("Scenario controls are placeholders for later CSP re-solving and model integration.")
+
+    st.header("What-If Scenario Simulation (System-Level Hardening)")
+
+    st.caption(
+
+        "Defensive simulation: evaluates the security impact of hardening an entire enterprise system "
+
+        "(multi-vulnerability remediation across a host). "
+
+        "Unit of analysis: Entire system. Operates on an isolated deep copy of the baseline state; "
+
+        "network topology connectivity is preserved and baseline disk artifacts remain unmodified."
+
+    )
+
+
+
+    risk_summary_path = Path("artifacts/risk/system_risk_summary.csv")
+
+    if risk_summary_path.exists():
+
+        risk_df = pd.read_csv(risk_summary_path)
+
+        system_list = risk_df["system_id"].tolist()
+
+    else:
+
+        system_list = ["WEB01", "APP01", "DB01", "AUTH01", "VPN01", "EMP01", "BACKUP01"]
+
+
+
+    col1, col2 = st.columns(2)
+    with col1:
+        target_sys = st.selectbox(
+            "Target System to Harden / Remediate",
+            system_list,
+            index=0,
+            format_func=lambda sid: f"{sid} — {get_asset_name(sid, short=True)}",
+        )
+    with col2:
+        reduction = st.slider("System Risk Reduction (% Hardening)", min_value=10, max_value=90, value=50, step=10)
+
+    asset_meta = get_asset(target_sys)
+    st.markdown(
+        f"""
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 0.65rem 0.85rem; margin-bottom: 0.85rem; font-size: 0.82rem;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <strong style="color: #34d399;">🎯 Target Campus Asset: {target_sys} — {asset_meta['name']}</strong>
+                <span style="color: #94a3b8; font-size: 0.74rem;">Owner: {asset_meta['owner']} | Category: {asset_meta['category']}</span>
+            </div>
+            <div style="color: var(--tw-text-primary); margin-top: 0.25rem;">
+                <strong>Purpose:</strong> {asset_meta['purpose']}
+            </div>
+            <div style="color: #fca5a5; margin-top: 0.25rem;">
+                <strong>Unmitigated Business Consequence:</strong> {asset_meta['business_impact']}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col_btn1, col_btn2 = st.columns([1, 4])
+    run_sim = col_btn1.button("Run Simulation", type="primary")
+    reset_sim = col_btn2.button("Restore Baseline")
+
+
+
+    if reset_sim:
+
+        st.session_state.pop("sim_result", None)
+
+        st.info("Baseline state active. No simulation changes applied.")
+
+        return
+
+
+
+    if run_sim or "sim_result" in st.session_state:
+
+        if run_sim:
+
+            try:
+
+                res = simulate_patch_impact(
+
+                    target_sys,
+
+                    risk_reduction_factor=reduction / 100.0,
+
+                    start_node="INTERNET",
+
+                    goal_node="DB01",
+
+                )
+
+                st.session_state["sim_result"] = res
+
+            except Exception as e:
+
+                st.error(f"Simulation failed: {e}")
+
+                return
+
+
+
+        res = st.session_state.get("sim_result")
+
+        if res:
+
+            st.subheader(f"Simulation Results: Patching {res['target_system']} (-{reduction}%)")
+
+            st.info(f"**Impact Summary:** {res['explanation']}")
+
+
+
+            m1, m2, m3 = st.columns(3)
+
+            base_r = res["baseline"]["system_risk"]["normalized_risk"]
+
+            sim_r = res["simulated"]["system_risk"]["normalized_risk"]
+
+            r_delta = res["deltas"]["risk_reduction"]
+
+            m1.metric("System Risk", f"{sim_r:.3f}", f"-{r_delta:.3f}", delta_color="inverse")
+
+
+
+            base_cost = res["baseline"]["path_cost"]
+
+            sim_cost = res["simulated"]["path_cost"]
+
+            c_delta = res["deltas"]["path_cost_increase"]
+
+            m2.metric("Adversary Traversal Cost", f"{sim_cost:.2f}", f"+{c_delta:.2f} (Hardened)")
+
+
+
+            path_status = "Rerouted" if res["deltas"]["path_diverted"] else "Maintained (Hardened)"
+
+            m3.metric("Attack Path Status", path_status)
+
+
+
+            st.write("**Attack Path Comparison:**")
+
+            col_p1, col_p2 = st.columns(2)
+
+            with col_p1:
+
+                st.caption("Baseline A* Path")
+
+                st.code(" → ".join(res["baseline"]["attack_path"]))
+
+            with col_p2:
+
+                st.caption(f"Simulated A* Path (after patching {res['target_system']})")
+
+                st.code(" → ".join(res["simulated"]["attack_path"]))
+
+
+
+            with st.expander("System Risk Comparison (Before vs. After)"):
+
+                st.dataframe(res["simulated_risk_df"], width="stretch", hide_index=True)
+
+
+
+
+
+def render_incident_simulation():
+
+    st.header("Incident Simulation")
+
+    st.caption(
+
+        "Explore a fictional FinBank security scenario end-to-end. "
+
+        "This simulation generates a hypothetical attack sequence, affected systems, estimated vulnerability risk, "
+
+        "a potential attack route, and a suggested remediation schedule."
+
+    )
+
+
+
+    scenario_options = {
+        "Student Academic Portal Compromise (WEB01/WEB02 -> APP01 -> DB01)": "customer_portal_compromise",
+        "Faculty & Staff Workstation Compromise (EMP01 -> AUTH01 -> APP01)": "employee_compromise",
+        "Faculty Remote Grading VPN Ingress (VPN01 -> AUTH01 -> DB01)": "remote_access_compromise",
+        "Campus Ransomware & Backup Vault Tampering (BACKUP01 -> DB01)": "backup_targeting",
+    }
+
+    selected_label = st.selectbox("University Incident Scenario", list(scenario_options.keys()))
+    scenario_id = scenario_options[selected_label]
+
+
+
+    run_btn = st.button("Run Simulation", type="primary")
+
+
+
+    if run_btn or "finbank_sim_result" in st.session_state:
+
+        if run_btn:
+
+            try:
+
+                with st.spinner("Running simulation..."):
+
+                    st.session_state["finbank_sim_result"] = run_finbank_simulation(scenario_id)
+
+            except Exception as e:
+
+                st.error(f"Simulation failed: {e}")
+
+                return
+
+
+
+        result = st.session_state.get("finbank_sim_result")
+
+        if result is None or result.scenario.get("scenario_id") != scenario_id:
+
+            return
+
+
+
+        st.subheader("Incident Overview")
+
+        incident_status = result.remediation_plan.get("status", "unknown")
+
+        if incident_status == "feasible":
+
+            st.success(f"Schedule status: {incident_status}")
+
+        else:
+
+            st.error(f"Schedule status: {incident_status}")
+
+
+
+        col1, col2 = st.columns(2)
+        with col1:
+            entry = result.incident.get("entry_point", "—")
+            entry_display = f"{entry} ({get_asset_name(entry, short=True)})" if entry != "—" else "—"
+            st.metric("Entry Point", entry_display)
+            affected_display = ", ".join(f"{s} ({get_asset_name(s, short=True)})" for s in result.affected_systems) if result.affected_systems else "—"
+            st.metric("Affected Campus Systems", affected_display)
+
+        with col2:
+            st.metric("Related Vulnerabilities", len(result.related_vulnerabilities))
+            crit_assets = result.incident.get("critical_assets_affected", [])
+            crit_display = ", ".join(f"{s} ({get_asset_name(s, short=True)})" for s in crit_assets) if crit_assets else "—"
+            st.metric("Critical Campus Assets Targeted", crit_display)
+
+        with st.expander("Technical Details"):
+            st.write("**Scenario:**", result.scenario.get("name", selected_label))
+            st.write("**Incident ID:**", result.incident.get("incident_id", "—"))
+            st.write("**Event Count:**", result.incident.get("event_count", 0))
+            st.write("**Potential Attack Route:**", " → ".join(result.attack_path.get("simulated_attack_path", [])))
+            st.write("**Route Difficulty Score:**", result.attack_path.get("total_risk_cost", "—"))
+
+            st.write("**Affected Systems:**")
+            for system_id in result.affected_systems:
+                st.write(f"- **{system_id}** — {get_asset_name(system_id)} (*{get_asset(system_id)['category']}*)")
+
+            st.write("**Related Vulnerabilities:**")
+            for vuln_id in result.related_vulnerabilities:
+                st.write(f"- {vuln_id}")
+
+        st.markdown("---")
+        st.subheader("Simulated Event Timeline")
+        st.caption(
+            "This timeline shows a fictional, deterministic sequence for demonstration only. "
+            "It does not represent real security incidents, breaches, or malicious activity."
+        )
+
+        timeline_events = result.events or []
+        if timeline_events:
+            for idx, event in enumerate(timeline_events, start=1):
+                event_type = event.get("event_type", "unknown")
+                event_type_label = event_type.replace("_", " ").title()
+                description = event.get("description", "")
+                target = event.get("target", "—")
+                target_display = f"{target} ({get_asset_name(target, short=True)})" if target != "—" else "—"
+
+                st.markdown(
+                    f"**{idx}.** {event_type_label} — **{target_display}**  "
+                    f"<span style='color: #9ca3af; font-size: 0.85rem;'>({description})</span>",
+                    unsafe_allow_html=True,
+                )
+
+        else:
+
+            st.caption("No timeline events available for this scenario.")
+
+
+
+        st.markdown("---")
+
+        st.subheader("Hypothetical Remediation Impact")
+
+        st.caption(
+
+            "This is a planning exercise only. "
+
+            "It does not guarantee that the selected remediation will produce the exact modeled risk reduction or route change in a real environment. "
+
+            "The simulation runs on an isolated copy of the current risk and network state."
+
+        )
+
+
+
+        schedule = result.remediation_plan.get("schedule", [])
+
+        if schedule:
+
+            task_options = {
+
+                f"{task['vuln_id']} on {task['system_id']} ({task['priority']}) — {task['team']}": task
+
+                for task in schedule
+
+            }
+
+            selected_task_label = st.selectbox(
+
+                "Select a remediation action to simulate",
+
+                list(task_options.keys()),
+
+            )
+
+            selected_task = task_options[selected_task_label]
+
+            target_system = selected_task["system_id"]
+
+
+
+            run_what_if_btn = st.button("Run Hypothetical Simulation", type="primary")
+
+
+
+            if run_what_if_btn or st.session_state.get("finbank_what_if_result"):
+
+                if run_what_if_btn:
+
+                    try:
+
+                        with st.spinner("Running hypothetical simulation..."):
+
+                            st.session_state["finbank_what_if_result"] = simulate_patch_impact(
+
+                                target_system=target_system,
+
+                                risk_reduction_factor=0.5,
+
+                                start_node="INTERNET",
+
+                                goal_node="DB01",
+
+                            )
+
+                    except Exception as e:
+
+                        st.error(f"What-if simulation failed: {e}")
+
+                        st.session_state.pop("finbank_what_if_result", None)
+
+
+
+                what_if_res = st.session_state.get("finbank_what_if_result")
+
+                if what_if_res and what_if_res.get("status") == "success":
+
+                    baseline_risk = what_if_res["baseline"]["system_risk"]
+
+                    simulated_risk = what_if_res["simulated"]["system_risk"]
+
+                    baseline_path = what_if_res["baseline"]["attack_path"]
+
+                    simulated_path = what_if_res["simulated"]["attack_path"]
+
+
+
+                    st.markdown("**BEFORE**")
+
+                    b1, b2, b3 = st.columns(3)
+
+                    with b1:
+
+                        st.metric("Affected Systems", ", ".join(result.affected_systems) if result.affected_systems else "—")
+
+                    with b2:
+
+                        st.metric("Estimated System Risk", f"{baseline_risk['normalized_risk']:.3f}", help="Normalized risk score for the target system before patching.")
+
+                    with b3:
+
+                        st.metric("Potential Attack Route", " → ".join(baseline_path))
+
+
+
+                    st.markdown("**AFTER**")
+
+                    a1, a2, a3 = st.columns(3)
+
+                    with a1:
+
+                        st.metric("Affected Systems", ", ".join(result.affected_systems) if result.affected_systems else "—")
+
+                    with a2:
+
+                        delta = what_if_res["deltas"]["risk_reduction"]
+
+                        st.metric("Estimated System Risk", f"{simulated_risk['normalized_risk']:.3f}", f"-{delta:.3f}", delta_color="inverse")
+
+                    with a3:
+
+                        path_changed = what_if_res["deltas"]["path_diverted"]
+
+                        path_label = "Rerouted" if path_changed else "Maintained (Hardened)"
+
+                        st.metric("Potential Attack Route", path_label)
+
+
+
+                    st.caption(
+
+                        f"**Hypothetical route:** {' → '.join(simulated_path)} "
+
+                        f"(difficulty {what_if_res['simulated']['path_cost']:.2f})"
+
+                    )
+
+
+
+                    with st.expander("Technical Details"):
+
+                        st.write("**Explanation:**", what_if_res.get("explanation", ""))
+
+                        st.write("**Target System:**", what_if_res.get("target_system", ""))
+
+                        st.write("**Simulated Risk Reduction:**", f"{what_if_res.get('risk_reduction_factor', 0.5):.0%}")
+
+                        st.write("**Original Route Difficulty:**", what_if_res["baseline"]["path_cost"])
+
+                        st.write("**Updated Route Difficulty:**", what_if_res["simulated"]["path_cost"])
+
+                        st.write("**Difficulty Increase:**", what_if_res["deltas"]["path_cost_increase"])
+
+        else:
+
+            st.caption("No remediation actions available to simulate.")
+
+
+
+        st.markdown("---")
+
+        st.subheader("Remediation Priority Explanations")
+
+        st.caption(
+
+            "Plain-language reasons why each high-priority remediation item appears in this schedule. "
+
+            "These explanations are based on deterministic rules applied to the simulation data."
+
+        )
+
+
+
+        schedule = result.remediation_plan.get("schedule", [])
+
+        if schedule:
+
+            high_priority_tasks = [
+
+                task for task in schedule if task.get("priority") in ("Critical", "High")
+
+            ]
+
+            if high_priority_tasks:
+
+                systems = load_finbank_systems()
+
+                for task in high_priority_tasks:
+
+                    explanation = _build_remediation_explanation(task, result, systems)
+
+                    st.markdown(f"- {explanation}")
+
+            else:
+
+                st.caption("No high-priority remediation items to explain.")
+
+        else:
+
+            st.caption("No remediation schedule available.")
+
+
+
+        st.markdown("---")
+
+        st.subheader("Potential Attack Route Map")
+
+        attack_path_list = result.attack_path.get("simulated_attack_path", [])
+
+        if attack_path_list:
+
+            try:
+
+                dot_graph = _generate_attack_graph_dot(attack_path_list)
+
+                st.graphviz_chart(dot_graph)
+
+            except Exception as e:
+
+                st.caption(f"Visualization unavailable: {e}")
+
+
+
+        m1, m2, m3, m4 = st.columns(4)
+
+        with m1:
+
+            st.metric("Route Length", f"{len(attack_path_list) - 1} Hops" if len(attack_path_list) > 1 else "0 Hops")
+
+        with m2:
+
+            st.metric("Starting Point", result.attack_path.get("entry_point", result.incident.get("entry_point", "—")))
+
+        with m3:
+
+            st.metric("Destination Asset", result.attack_path.get("target_critical_asset", "—"))
+
+        with m4:
+
+            st.metric("Important Assets", ", ".join(result.incident.get("critical_assets_affected", [])) or "—")
+
+
+
+        path_systems = [s for s in attack_path_list if s != "INTERNET"]
+
+        st.markdown("**Important Systems on This Route:**")
+
+        if path_systems:
+
+            critical_assets_on_path = [
+
+                s for s in path_systems
+
+                if s in result.incident.get("critical_assets_affected", [])
+
+            ]
+
+            if critical_assets_on_path:
+
+                for system_id in critical_assets_on_path:
+
+                    st.write(f"- ⚠️ {system_id}")
+
+            else:
+
+                st.caption("No important systems flagged on this route.")
+
+
+
+        inventory_path = Path("artifacts/finbank/finbank_vulnerability_inventory.csv")
+
+        if inventory_path.exists():
+
+            try:
+
+                inventory_df = pd.read_csv(inventory_path)
+
+                path_vulns = inventory_df[inventory_df["system_id"].isin(path_systems)]
+
+                if not path_vulns.empty:
+
+                    st.markdown("**Vulnerabilities on Route Systems:**")
+
+                    summary = (
+
+                        path_vulns.groupby("system_id")
+
+                        .agg(
+
+                            vulnerability_count=("vuln_id", "count"),
+
+                            vuln_ids=("vuln_id", lambda x: ", ".join(sorted(x))),
+
+                        )
+
+                        .reset_index()
+
+                    )
+
+                    st.dataframe(summary, width="stretch", hide_index=True)
+
+                else:
+
+                    st.caption("No vulnerability inventory data found for systems on this route.")
+
+            except Exception as e:
+
+                st.caption(f"Vulnerability lookup unavailable: {e}")
+
+        else:
+
+            st.caption("Run the FinBank simulation to populate the vulnerability inventory for systems on this route.")
+
+
+
 
 
 def main():
-    st.title("🛡️ TraceWard")
-    st.caption("Cyber Risk Analysis • Attack Path Detection • Smart Remediation Planning")
+    # Direct stage routing via query parameter or button links
+    if "stage" in st.query_params:
+        target_stage = st.query_params.get("stage")
+        valid_stages = {
+            "Threat Discovery",
+            "Risk Intelligence",
+            "Attack Corridors",
+            "Smart Remediation",
+            "Incident Lab",
+            "Defense Verification",
+        }
+        if target_stage in valid_stages:
+            st.session_state["nav_stage"] = target_stage
+
+    # Theme mode & styling
+    theme_mode = st.session_state.get("ui_theme_mode", "Dark")
+    inject_theme(theme_mode)
+
+    # Sidebar navigation
+    selected_stage = render_sidebar_navigation()
+
+
+
+    # Load core pipeline data
+
+    clusters_df, is_mock_clusters = load_clusters()
+
+    risk_df, is_mock_risk = load_risk()
+
+    attack_path_info, is_mock_path = load_attack_path()
 
     csp_result = get_csp_result()
-    tabs = st.tabs(
-        [
-            "Overview",
-            "Clusters",
-            "Risk Prediction",
-            "Attack Graph/Path",
-            "Patch Plan",
-            "What-If Analysis",
-        ]
+
+
+
+    # Telemetry parameters for global header
+
+    threat_posture = "ELEVATED"
+
+    min_cost = 4.08
+
+    if attack_path_info:
+
+        min_cost = float(attack_path_info.get("total_cost", 4.08))
+
+    sched_len = len(csp_result.get("schedule", []))
+
+    remediation_status = f"{sched_len} Tasks Dispatched" if sched_len else "Queued"
+
+
+
+    # Persistent Global Header
+
+    render_global_header(
+
+        threat_posture=threat_posture,
+
+        crown_jewel="DB01 (Customer DB)",
+
+        min_traversal_cost=min_cost,
+
+        remediation_status=remediation_status,
+
+        is_mock=(is_mock_risk or is_mock_clusters or is_mock_path),
+
     )
 
-    with tabs[0]:
-        render_overview(csp_result)
-    with tabs[1]:
-        render_clusters()
-    with tabs[2]:
-        render_risk_prediction()
-    with tabs[3]:
-        render_attack_path()
-    with tabs[4]:
+
+
+    # Route based on the active SOC defense stage
+
+    if selected_stage == "Threat Discovery":
+
+        render_overview(risk_df, csp_result, attack_path_info, is_mock_risk)
+
+
+
+    elif selected_stage == "Risk Intelligence":
+
+        intel_tab1, intel_tab2 = st.tabs(
+
+            ["🎯 Risk Level Prediction", "🧩 Structural Clustering Profiles"]
+
+        )
+
+        with intel_tab1:
+
+            render_risk_prediction(risk_df, clusters_df, is_mock_risk)
+
+        with intel_tab2:
+
+            render_clusters(clusters_df, is_mock_clusters)
+
+
+
+    elif selected_stage == "Attack Corridors":
+
+        render_attack_path(attack_path_info, is_mock_path)
+
+
+
+    elif selected_stage == "Smart Remediation":
+
         render_patch_plan(csp_result)
-    with tabs[5]:
+
+
+
+    elif selected_stage == "Incident Lab":
+
+        render_incident_simulation()
+
+
+
+    elif selected_stage == "Defense Verification":
+
         render_what_if()
 
 
+
+    else:
+
+        # Fallback to overview
+
+        render_overview(risk_df, csp_result, attack_path_info, is_mock_risk)
+
+
+
+
+
 if __name__ == "__main__":
+
     main()
+

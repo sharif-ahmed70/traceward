@@ -1,0 +1,66 @@
+{
+  "INTERNET": {
+    "system_id": "INTERNET",
+    "display_name": "Internet",
+    "type": "External",
+    "criticality": 1,
+    "internet_exposed": true,
+    "description": "Untrusted external network environment representing the public Internet ingress point."
+  },
+  "WEB01": {
+    "system_id": "WEB01",
+    "display_name": "Customer Web Portal",
+    "type": "Server",
+    "criticality": 4,
+    "internet_exposed": true,
+    "description": "Public-facing customer web portal hosting FinBank's online banking interface."
+  },
+  "APP01": {
+    "system_id": "APP01",
+    "display_name": "Banking Application Server",
+    "type": "Server",
+    "criticality": 4,
+    "internet_exposed": false,
+    "description": "Core banking application server processing transactions and business logic."
+  },
+  "AUTH01": {
+    "system_id": "AUTH01",
+    "display_name": "Authentication / Identity Server",
+    "type": "Server",
+    "criticality": 5,
+    "internet_exposed": false,
+    "description": "Central authentication and identity management service for customers and employees."
+  },
+  "VPN01": {
+    "system_id": "VPN01",
+    "display_name": "Remote Access Gateway",
+    "type": "Gateway",
+    "criticality": 4,
+    "internet_exposed": true,
+    "description": "Secure remote access gateway for authorized FinBank employee connectivity."
+  },
+  "EMP01": {
+    "system_id": "EMP01",
+    "display_name": "Employee Workstation",
+    "type": "Workstation",
+    "criticality": 2,
+    "internet_exposed": false,
+    "description": "Standard employee endpoint used for internal FinBank operations and administration."
+  },
+  "DB01": {
+    "system_id": "DB01",
+    "display_name": "Customer / Business Database",
+    "type": "Database",
+    "criticality": 5,
+    "internet_exposed": false,
+    "description": "Primary database housing customer accounts, transactions, and sensitive financial records."
+  },
+  "BACKUP01": {
+    "system_id": "BACKUP01",
+    "display_name": "Backup Infrastructure",
+    "type": "Server",
+    "criticality": 5,
+    "internet_exposed": false,
+    "description": "Backup and recovery infrastructure containing historical snapshots of core financial data."
+  }
+}

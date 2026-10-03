@@ -1,0 +1,5 @@
+cluster_id,sample_count,proportion,attack_complexity_mean,attack_complexity_std,privileges_required_mean,privileges_required_std,user_interaction_mean,user_interaction_std,confidentiality_impact_mean,confidentiality_impact_std,integrity_impact_mean,integrity_impact_std,availability_impact_mean,availability_impact_std,exploit_probability_mean,exploit_probability_std,risk_low_count,risk_low_pct,risk_medium_count,risk_medium_pct,risk_high_count,risk_high_pct,risk_critical_count,risk_critical_pct
+0,299,24.92,0.522,0.5,1.007,0.811,0.0,0.0,0.746,0.791,0.559,0.709,0.579,0.712,0.318,0.248,132,44.15,153,51.17,14,4.68,0,0.0
+1,309,25.75,0.485,0.501,1.049,0.814,1.0,0.0,0.56,0.712,0.699,0.758,0.56,0.726,0.332,0.253,168,54.37,135,43.69,6,1.94,0,0.0
+2,289,24.08,0.439,0.497,0.827,0.819,0.0,0.0,1.384,0.708,1.505,0.683,1.571,0.631,0.693,0.235,0,0.0,3,1.04,129,44.64,157,54.33
+3,303,25.25,0.465,0.5,0.779,0.789,1.0,0.0,1.531,0.645,1.436,0.711,1.439,0.716,0.714,0.231,0,0.0,9,2.97,151,49.83,143,47.19

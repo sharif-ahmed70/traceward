@@ -1,0 +1,124 @@
+[
+  {
+    "vuln_id": "V0036",
+    "system_id": "WEB01",
+    "priority": "Critical",
+    "team": "Web Team",
+    "time_slot": "Mon 10:00",
+    "day": "Mon",
+    "window": "Business hours",
+    "on_attack_path": true,
+    "depends_on": []
+  },
+  {
+    "vuln_id": "V0426",
+    "system_id": "APP01",
+    "priority": "Critical",
+    "team": "Application Team",
+    "time_slot": "Mon 15:00",
+    "day": "Mon",
+    "window": "Business hours",
+    "on_attack_path": true,
+    "depends_on": [
+      "V0036"
+    ]
+  },
+  {
+    "vuln_id": "V0128",
+    "system_id": "DB01",
+    "priority": "Critical",
+    "team": "Database Team",
+    "time_slot": "Mon 20:00",
+    "day": "Mon",
+    "window": "After hours",
+    "on_attack_path": true,
+    "depends_on": [
+      "V0426"
+    ]
+  },
+  {
+    "vuln_id": "V0297",
+    "system_id": "DB01",
+    "priority": "Critical",
+    "team": "Database Team",
+    "time_slot": "Mon 23:00",
+    "day": "Mon",
+    "window": "After hours",
+    "on_attack_path": true,
+    "depends_on": [
+      "V0426"
+    ]
+  },
+  {
+    "vuln_id": "V0568",
+    "system_id": "APP01",
+    "priority": "Critical",
+    "team": "Application Team",
+    "time_slot": "Tue 10:00",
+    "day": "Tue",
+    "window": "Business hours",
+    "on_attack_path": true,
+    "depends_on": [
+      "V0036"
+    ]
+  },
+  {
+    "vuln_id": "V0399",
+    "system_id": "WEB01",
+    "priority": "Critical",
+    "team": "Web Team",
+    "time_slot": "Tue 10:00",
+    "day": "Tue",
+    "window": "Business hours",
+    "on_attack_path": true,
+    "depends_on": []
+  },
+  {
+    "vuln_id": "V0146",
+    "system_id": "AUTH01",
+    "priority": "Critical",
+    "team": "Network Team",
+    "time_slot": "Tue 20:00",
+    "day": "Tue",
+    "window": "After hours",
+    "on_attack_path": false,
+    "depends_on": []
+  },
+  {
+    "vuln_id": "V0040",
+    "system_id": "BACKUP01",
+    "priority": "Critical",
+    "team": "Database Team",
+    "time_slot": "Tue 23:00",
+    "day": "Tue",
+    "window": "After hours",
+    "on_attack_path": false,
+    "depends_on": [
+      "V0128"
+    ]
+  },
+  {
+    "vuln_id": "V0186",
+    "system_id": "VPN01",
+    "priority": "Critical",
+    "team": "Network Team",
+    "time_slot": "Wed 10:00",
+    "day": "Wed",
+    "window": "Business hours",
+    "on_attack_path": false,
+    "depends_on": []
+  },
+  {
+    "vuln_id": "V0056",
+    "system_id": "EMP01",
+    "priority": "Critical",
+    "team": "IT Support Team",
+    "time_slot": "Wed 15:00",
+    "day": "Wed",
+    "window": "Business hours",
+    "on_attack_path": false,
+    "depends_on": [
+      "V0186"
+    ]
+  }
+]

@@ -1,0 +1,107 @@
+{
+  "nodes": [
+    {
+      "id": "INTERNET",
+      "name": "Internet",
+      "type": "External",
+      "criticality": 1,
+      "internet_exposed": true
+    },
+    {
+      "id": "WEB01",
+      "name": "Customer Web Portal",
+      "type": "Server",
+      "criticality": 4,
+      "internet_exposed": true
+    },
+    {
+      "id": "APP01",
+      "name": "Banking Application Server",
+      "type": "Server",
+      "criticality": 4,
+      "internet_exposed": false
+    },
+    {
+      "id": "AUTH01",
+      "name": "Authentication / Identity Server",
+      "type": "Server",
+      "criticality": 5,
+      "internet_exposed": false
+    },
+    {
+      "id": "VPN01",
+      "name": "Remote Access Gateway",
+      "type": "Gateway",
+      "criticality": 4,
+      "internet_exposed": true
+    },
+    {
+      "id": "EMP01",
+      "name": "Employee Workstation",
+      "type": "Workstation",
+      "criticality": 2,
+      "internet_exposed": false
+    },
+    {
+      "id": "DB01",
+      "name": "Customer / Business Database",
+      "type": "Database",
+      "criticality": 5,
+      "internet_exposed": false
+    },
+    {
+      "id": "BACKUP01",
+      "name": "Backup Infrastructure",
+      "type": "Server",
+      "criticality": 5,
+      "internet_exposed": false
+    }
+  ],
+  "edges": [
+    {
+      "source": "INTERNET",
+      "target": "WEB01",
+      "base_cost": 2
+    },
+    {
+      "source": "INTERNET",
+      "target": "VPN01",
+      "base_cost": 2
+    },
+    {
+      "source": "WEB01",
+      "target": "APP01",
+      "base_cost": 3
+    },
+    {
+      "source": "APP01",
+      "target": "AUTH01",
+      "base_cost": 4
+    },
+    {
+      "source": "APP01",
+      "target": "DB01",
+      "base_cost": 4
+    },
+    {
+      "source": "VPN01",
+      "target": "AUTH01",
+      "base_cost": 3
+    },
+    {
+      "source": "AUTH01",
+      "target": "APP01",
+      "base_cost": 2
+    },
+    {
+      "source": "EMP01",
+      "target": "AUTH01",
+      "base_cost": 3
+    },
+    {
+      "source": "DB01",
+      "target": "BACKUP01",
+      "base_cost": 3
+    }
+  ]
+}
