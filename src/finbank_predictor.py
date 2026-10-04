@@ -13,6 +13,7 @@ from typing import Optional
 import pandas as pd
 
 from src.knn_classifier import FEATURE_COLUMNS, load_trained_model, predict_single_vulnerability
+from src.utils import write_text_atomic
 
 FINBANK_PROCESSED_DATA_PATH = Path("data/processed/vulnerabilities_processed.csv")
 KNN_MODEL_PATH = Path("artifacts/knn/knn_model.joblib")
@@ -74,7 +75,7 @@ def predict_full_inventory(
 
     out_path = Path(output_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(out_path, index=False, encoding="utf-8", lineterminator="\n")
+    write_text_atomic(out_path, df.to_csv(index=False, lineterminator="\n"))
     return df
 
 
