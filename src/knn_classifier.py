@@ -24,6 +24,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 import joblib
+from src.utils import atomic_path, write_text_atomic
 
 FEATURE_COLUMNS = [
     "attack_complexity",
@@ -132,7 +133,7 @@ def train_and_select_k(
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     cv_csv_path = out_dir / "k_selection_cv.csv"
-    cv_df.to_csv(cv_csv_path, index=False)
+    write_text_atomic(cv_csv_path, cv_df.to_csv(index=False))
 
     # Deterministic selection: highest mean CV accuracy, then lowest std, then smallest K
     best_row = cv_df.sort_values(
@@ -261,7 +262,7 @@ def evaluate_model(model, X_test, y_test, selected_k=None, output_dir="artifacts
 
     report = "\n".join(report_lines)
     report_path = out_dir / "evaluation_report.txt"
-    report_path.write_text(report, encoding="utf-8")
+    write_text_atomic(report_path, report)
     print("\n" + report)
 
     return {
@@ -294,15 +295,16 @@ def predict_and_export(model, X_test, y_test, ids_test, output_dir="artifacts/kn
 
     # Save test partition predictions
     test_pred_path = out_dir / "test_predictions.csv"
-    predictions.to_csv(test_pred_path, index=False)
+    write_text_atomic(test_pred_path, predictions.to_csv(index=False))
 
     # Save primary predictions artifact for downstream consumers
     main_pred_path = out_dir / "predictions.csv"
-    predictions.to_csv(main_pred_path, index=False)
+    write_text_atomic(main_pred_path, predictions.to_csv(index=False))
 
     # Persist fitted pipeline artifact
     model_path = out_dir / "knn_model.joblib"
-    joblib.dump(model, model_path)
+    with atomic_path(model_path) as tmp:
+        joblib.dump(model, tmp)
 
     print(f"\nPredictions exported:")
     print(f"  - {test_pred_path} ({len(predictions)} rows)")

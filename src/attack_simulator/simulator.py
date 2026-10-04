@@ -20,6 +20,7 @@ from src.attack_simulator.events import (
     event_to_dict,
 )
 from src.attack_simulator.scenarios import AttackScenario, get_finbank_scenario
+from src.utils import write_text_atomic
 
 FIXED_SEED = 42
 OUTPUT_PATH = Path("artifacts/finbank/simulated_events.csv")
@@ -109,7 +110,7 @@ def simulate_finbank_attack(
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     rows = [event_to_dict(e) for e in events]
     df = pd.DataFrame(rows)
-    df.to_csv(OUTPUT_PATH, index=False, encoding="utf-8", lineterminator="\n")
+    write_text_atomic(OUTPUT_PATH, df.to_csv(index=False, lineterminator="\n"))
     return df
 
 

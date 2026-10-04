@@ -8,6 +8,7 @@ import streamlit as st
 
 from src.astar_search import enumerate_attack_paths
 from src.graph_builder import build_graph
+from dashboard.attack_replay import render_attack_replay
 from src.what_if_simulation import describe_action, find_chokepoints, simulate_actions
 
 START, GOAL = "INTERNET", "DB01"
@@ -235,6 +236,10 @@ def render_action_simulator():
     st.graphviz_chart(_graph_dot(graph, names, result["baseline"]["path"], result["simulated"]["path"], plan))
     st.caption("Red dashed = today's attack route · Orange = attack route after your plan · "
                "Grey dashed = cut or disconnected · Green = patched server")
+
+    if result["outcome"] == "rerouted":
+        render_attack_replay(result["sim_graph"], result["simulated"]["path"], key="sim_replay",
+                             title="▶️ Watch the attacker's new route")
 
     with st.expander("Technical details (A* attack cost)"):
         st.write(f"Before: cost {result['baseline']['cost']}  ·  After: cost {result['simulated']['cost']}")

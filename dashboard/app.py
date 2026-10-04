@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import json
 
+import time
+
 import sys
 
 from pathlib import Path
@@ -47,6 +49,10 @@ from src.csp_solver import CSPCase, VulnerabilityTask, solve_csp  # noqa: E402
 from dashboard.algorithm_panels import render_astar_analysis, render_csp_analysis  # noqa: E402
 
 from dashboard.action_simulator import render_action_simulator  # noqa: E402
+
+from dashboard.attack_replay import render_baseline_attack_replay  # noqa: E402
+
+from dashboard.inference_context import render_inference_context  # noqa: E402
 
 from src.explainability import (  # noqa: E402
 
@@ -428,7 +434,13 @@ def render_risk_prediction(risk_df, clusters_df, is_mock):
 
         try:
 
-            pred_result = predict_single_vulnerability(custom_features)
+            with st.spinner(f"Analyzing the weakness on {target_sys} — {get_asset_name(target_sys, short=True)}..."):
+
+                time.sleep(0.6)  # brief, deliberate feedback so each click visibly runs
+
+                pred_result = predict_single_vulnerability(custom_features)
+
+            st.toast(f"Prediction updated for {target_sys}", icon="✅")
 
             p_class = pred_result["predicted_risk"]
 
@@ -436,7 +448,7 @@ def render_risk_prediction(risk_df, clusters_df, is_mock):
 
 
 
-            st.success(f"Predicted Risk Level: **{p_class}**")
+            st.success(f"Predicted Risk Level: **{p_class}** for {target_sys} — {get_asset_name(target_sys, short=True)}")
 
             p_cols = st.columns(4)
 
@@ -484,6 +496,8 @@ def render_risk_prediction(risk_df, clusters_df, is_mock):
 
             render_structured_explanation_card(exp)
 
+            render_inference_context(target_sys, p_class, custom_features)
+
         except Exception as e:
 
             st.error(f"Inference failed: {e}")
@@ -505,6 +519,8 @@ def render_attack_path(attack_path_info, is_mock):
     st.caption(attack_path_info.get("human_readable", ""))
 
     render_attack_path_intelligence(attack_path_info, is_mock=is_mock)
+
+    render_baseline_attack_replay()
 
     render_astar_analysis()
 
