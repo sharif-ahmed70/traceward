@@ -13,6 +13,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.finbank_env import _default_finbank_systems
+from src.utils import write_text_atomic
 
 RAW_VULNERABILITIES_PATH = Path("data/raw/vulnerabilities.csv")
 OUTPUT_INVENTORY_PATH = Path("artifacts/finbank/finbank_vulnerability_inventory.csv")
@@ -79,7 +80,7 @@ def assign_finbank_vulnerabilities(
     df["system_id"] = assignments
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path, index=False, encoding="utf-8", lineterminator="\n")
+    write_text_atomic(output_path, df.to_csv(index=False, lineterminator="\n"))
     return df
 
 

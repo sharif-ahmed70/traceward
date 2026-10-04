@@ -46,6 +46,8 @@ from src.csp_solver import CSPCase, VulnerabilityTask, solve_csp  # noqa: E402
 
 from dashboard.algorithm_panels import render_astar_analysis, render_csp_analysis  # noqa: E402
 
+from dashboard.action_simulator import render_action_simulator  # noqa: E402
+
 from src.explainability import (  # noqa: E402
 
     explain_attack_path,
@@ -1461,6 +1463,10 @@ def main():
 
 
     elif selected_stage == "Defense Verification":
+
+        render_action_simulator()
+
+        st.divider()
 
         render_what_if()
 

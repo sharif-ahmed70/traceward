@@ -41,6 +41,7 @@ from src.finbank_network import build_finbank_graph
 from src.finbank_astar_integration import run_scenario_attack_path
 from src.finbank_csp_planner import run_finbank_remediation_plan
 from src.what_if_simulation import simulate_patch_impact
+from src.utils import write_text_atomic
 
 
 @dataclass(frozen=True)
@@ -86,25 +87,25 @@ def _ensure_dirs() -> None:
 
 def _save_scenario(scenario: dict[str, object], scenario_id: str) -> Path:
     p = SCENARIO_DIR / f"{scenario_id}.json"
-    p.write_text(json.dumps(scenario, indent=2), encoding="utf-8")
+    write_text_atomic(p, json.dumps(scenario, indent=2))
     return p
 
 
 def _save_events(events: list[dict[str, object]], scenario_id: str) -> Path:
     p = EVENTS_DIR / f"{scenario_id}.json"
-    p.write_text(json.dumps(events, indent=2, sort_keys=True), encoding="utf-8")
+    write_text_atomic(p, json.dumps(events, indent=2, sort_keys=True))
     return p
 
 
 def _save_incident(incident: dict[str, object], scenario_id: str) -> Path:
     p = INCIDENTS_DIR / f"{scenario_id}.json"
-    p.write_text(json.dumps(incident, indent=2, sort_keys=True), encoding="utf-8")
+    write_text_atomic(p, json.dumps(incident, indent=2, sort_keys=True))
     return p
 
 
 def _save_attack_path(attack_path: dict[str, object], scenario_id: str) -> Path:
     p = ATTACK_PATHS_DIR / f"{scenario_id}.json"
-    p.write_text(json.dumps(attack_path, indent=2, sort_keys=True), encoding="utf-8")
+    write_text_atomic(p, json.dumps(attack_path, indent=2, sort_keys=True))
     return p
 
 
@@ -112,9 +113,7 @@ def _save_remediation_plan(
     remediation_plan: dict[str, object], scenario_id: str
 ) -> Path:
     p = REMEDIATION_PLANS_DIR / f"{scenario_id}.json"
-    p.write_text(
-        json.dumps(remediation_plan, indent=2, sort_keys=True), encoding="utf-8"
-    )
+    write_text_atomic(p, json.dumps(remediation_plan, indent=2, sort_keys=True))
     return p
 
 
