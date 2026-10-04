@@ -48,6 +48,8 @@ from dashboard.algorithm_panels import render_astar_analysis, render_csp_analysi
 
 from dashboard.action_simulator import render_action_simulator  # noqa: E402
 
+from dashboard.attack_replay import render_baseline_attack_replay  # noqa: E402
+
 from src.explainability import (  # noqa: E402
 
     explain_attack_path,
@@ -505,6 +507,8 @@ def render_attack_path(attack_path_info, is_mock):
     st.caption(attack_path_info.get("human_readable", ""))
 
     render_attack_path_intelligence(attack_path_info, is_mock=is_mock)
+
+    render_baseline_attack_replay()
 
     render_astar_analysis()
 
