@@ -19,7 +19,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.graph_builder import build_graph
-from src.astar_search import astar_search
+from src.astar_search import astar_search, enumerate_attack_paths
 
 
 def simulate_patch_impact(
@@ -170,6 +170,180 @@ def simulate_patch_impact(
         "simulated_risk_df": sim_risk_df,
     }
 
+
+
+# ---------------------------------------------------------------------------
+# Security action simulator: patch weaknesses, cut connections, isolate hosts
+# ---------------------------------------------------------------------------
+
+def _node_name(graph: Dict[str, Any], node_id: str) -> str:
+    for node in graph.get("nodes", []):
+        if node["id"] == node_id:
+            return node.get("name", node_id)
+    return node_id
+
+
+def _describe_path(graph: Dict[str, Any], path) -> str:
+    return " → ".join(_node_name(graph, n) for n in path)
+
+
+def apply_actions(graph: Dict[str, Any], actions) -> Dict[str, Any]:
+    """Return a deep copy of `graph` with the security actions applied.
+
+    Supported actions:
+      {"type": "patch",   "system": "WEB01", "vuln_ids": ["V0036", ...]}
+      {"type": "block",   "source": "WEB01", "target": "APP01"}
+      {"type": "isolate", "system": "APP01"}
+
+    Patching removes the listed vulnerabilities: the host's exploitability is recomputed
+    from the remaining ones, and its predicted risk shrinks in proportion to the
+    vulnerabilities removed. A fully patched host keeps a residual risk of 0.05.
+    """
+    sim = copy.deepcopy(graph)
+    adjacency = sim["adjacency"]
+
+    for action in actions:
+        kind = action["type"]
+        if kind == "patch":
+            system = action["system"]
+            eases = sim.get("vuln_ease_map", {}).get(system, {})
+            total = len(eases)
+            for vid in action.get("vuln_ids", []):
+                eases.pop(vid, None)
+            if total:
+                remaining = len(eases)
+                sim.setdefault("exploit_map", {})[system] = (
+                    round(sum(eases.values()) / remaining, 3) if remaining else 0.0
+                )
+                base_risk = sim.get("risk_map", {}).get(system, 0.5)
+                sim.setdefault("risk_map", {})[system] = round(max(0.05, base_risk * remaining / total), 3)
+        elif kind == "block":
+            src, dst = action["source"], action["target"]
+            if dst in adjacency.get(src, []):
+                adjacency[src].remove(dst)
+            sim["edges"] = [e for e in sim["edges"] if not (e["source"] == src and e["target"] == dst)]
+        elif kind == "isolate":
+            system = action["system"]
+            adjacency[system] = []
+            for neighbors in adjacency.values():
+                if system in neighbors:
+                    neighbors.remove(system)
+            sim["edges"] = [e for e in sim["edges"] if system not in (e["source"], e["target"])]
+        else:
+            raise ValueError(f"Unknown action type: {kind}")
+    return sim
+
+
+def describe_action(graph: Dict[str, Any], action: Dict[str, Any]) -> str:
+    """Plain-language description of one action."""
+    kind = action["type"]
+    if kind == "patch":
+        count = len(action.get("vuln_ids", []))
+        total = len(graph.get("vuln_ease_map", {}).get(action["system"], {}))
+        return f"Fix {count} of {total} weaknesses on the {_node_name(graph, action['system'])}"
+    if kind == "block":
+        return (f"Cut the connection from the {_node_name(graph, action['source'])} "
+                f"to the {_node_name(graph, action['target'])}")
+    return f"Disconnect the {_node_name(graph, action['system'])} from the network"
+
+
+def _try_path(graph, start, goal):
+    try:
+        return astar_search(graph, start=start, goal=goal)
+    except ValueError:
+        return None
+
+
+def find_chokepoints(graph: Dict[str, Any], start: str = "INTERNET", goal: str = "DB01") -> Dict[str, list]:
+    """Hosts and connections that every attack path must pass through.
+
+    Removing any one of them leaves the attacker with no route to the goal.
+    """
+    if _try_path(graph, start, goal) is None:
+        return {"hosts": [], "connections": []}
+    hosts = [
+        node for node in graph["adjacency"]
+        if node not in (start, goal)
+        and _try_path(apply_actions(graph, [{"type": "isolate", "system": node}]), start, goal) is None
+    ]
+    connections = [
+        (u, v) for u, neighbors in graph["adjacency"].items() for v in neighbors
+        if _try_path(apply_actions(graph, [{"type": "block", "source": u, "target": v}]), start, goal) is None
+    ]
+    return {"hosts": hosts, "connections": connections}
+
+
+def simulate_actions(
+    actions,
+    graph: Optional[Dict[str, Any]] = None,
+    start: str = "INTERNET",
+    goal: str = "DB01",
+) -> Dict[str, Any]:
+    """Re-run A* after a set of security actions and explain the outcome in plain language.
+
+    Outcome is one of:
+      - "blocked":   no attack path to the goal remains
+      - "rerouted":  the attacker must switch to a different path
+      - "harder":    same path, but it costs the attacker more effort
+      - "unchanged": the actions do not affect the easiest attack path
+    """
+    graph = graph if graph is not None else build_graph()
+    baseline = astar_search(graph, start=start, goal=goal)
+    sim_graph = apply_actions(graph, actions)
+    simulated = _try_path(sim_graph, start, goal)
+    goal_name = _node_name(graph, goal)
+
+    if simulated is None:
+        outcome = "blocked"
+        effort_change = None
+        headline = f"Attack blocked: the attacker can no longer reach the {goal_name}."
+        explanation = (
+            "After these actions there is no route left from the internet to the "
+            f"{goal_name}. Every possible path has been cut off."
+        )
+    else:
+        effort_change = round(
+            (simulated["total_cost"] - baseline["total_cost"]) / baseline["total_cost"] * 100, 1
+        )
+        if simulated["path"] != baseline["path"]:
+            outcome = "rerouted"
+            headline = f"The attacker found another way in (+{effort_change}% effort)."
+            explanation = (
+                "The original route is closed, but the attacker can still reach the "
+                f"{goal_name} through: {_describe_path(graph, simulated['path'])}."
+            )
+        elif effort_change > 0:
+            outcome = "harder"
+            headline = f"Same route, but {effort_change}% harder for the attacker."
+            explanation = (
+                "The attacker still uses the same route, but it now takes more effort. "
+                "This slows an attack down without stopping it."
+            )
+        else:
+            outcome = "unchanged"
+            headline = "No change: the easiest attack route is not affected."
+            explanation = "These actions do not touch the route the attacker is most likely to use."
+
+    return {
+        "outcome": outcome,
+        "headline": headline,
+        "explanation": explanation,
+        "actions": [describe_action(graph, a) for a in actions],
+        "baseline": {
+            "path": baseline["path"],
+            "path_names": _describe_path(graph, baseline["path"]),
+            "cost": baseline["total_cost"],
+        },
+        "simulated": {
+            "path": simulated["path"] if simulated else None,
+            "path_names": _describe_path(graph, simulated["path"]) if simulated else None,
+            "cost": simulated["total_cost"] if simulated else None,
+        },
+        "effort_change_pct": effort_change,
+        "routes_before": len(enumerate_attack_paths(graph, start, goal)),
+        "routes_after": len(enumerate_attack_paths(sim_graph, start, goal)),
+        "sim_graph": sim_graph,
+    }
 
 if __name__ == "__main__":
     print("Testing What-If Patch Simulation on WEB01...")
