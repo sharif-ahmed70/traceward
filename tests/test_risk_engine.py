@@ -143,3 +143,21 @@ class TestRiskEngine(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestContextualPriority(unittest.TestCase):
+    def test_same_class_differs_by_system(self):
+        from src.risk_engine import contextual_priority
+        db = {"criticality": 5, "internet_exposed": False}
+        pc = {"criticality": 2, "internet_exposed": False}
+        on_path = contextual_priority("High", db, on_attack_path=True)
+        workstation = contextual_priority("High", pc)
+        self.assertEqual(on_path["level"], "Urgent")
+        self.assertEqual(workstation["level"], "Medium")
+        self.assertGreater(on_path["score"], workstation["score"])
+
+    def test_reasons_explain_each_factor(self):
+        from src.risk_engine import contextual_priority
+        res = contextual_priority("Critical", {"criticality": 4, "internet_exposed": True}, True, True)
+        self.assertEqual(len(res["reasons"]), 5)
+        self.assertEqual(res["level"], "Urgent")

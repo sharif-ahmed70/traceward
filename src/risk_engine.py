@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import pandas as pd
+from src.utils import write_text_atomic
 
 RISK_SCORE_MAP = {
     "Low": 1,
@@ -134,6 +135,53 @@ def build_system_risk_summary(
 
     out_path = Path(output_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    summary_df.to_csv(out_path, index=False, encoding="utf-8")
+    write_text_atomic(out_path, summary_df.to_csv(index=False))
 
     return summary_df
+
+
+URGENCY_LEVELS = (
+    (60, "Urgent", "within 24 hours"),
+    (45, "High", "within 3 days"),
+    (30, "Medium", "within 2 weeks"),
+    (0, "Low", "in the next maintenance cycle"),
+)
+
+
+def contextual_priority(predicted_risk, system, on_attack_path=False, is_chokepoint=False):
+    """Combine a vulnerability's predicted risk class with where it sits in the network.
+
+    The KNN risk class depends only on CVSS features, so it is identical on every host.
+    How urgent the fix is depends on the host: its business criticality (1-5), internet
+    exposure, and whether it lies on the A* attack path or is a chokepoint.
+
+    Args:
+        predicted_risk: "Low" | "Medium" | "High" | "Critical"
+        system: network node dict with "criticality" and "internet_exposed"
+
+    Returns:
+        dict with score, level, fix_within and plain-language reasons.
+    """
+    criticality = int(system.get("criticality", 3))
+    exposed = bool(system.get("internet_exposed", False))
+    parts = [
+        (risk_label_to_score(predicted_risk) * 10, f"the weakness itself is rated {predicted_risk}"),
+        (criticality * 4, f"this server's business importance is {criticality} out of 5"),
+    ]
+    if exposed:
+        parts.append((8, "it can be reached directly from the internet"))
+    if on_attack_path:
+        parts.append((10, "it lies on the easiest attack route to the Database Server"))
+    if is_chokepoint:
+        parts.append((6, "every attack route passes through it"))
+
+    score = sum(points for points, _ in parts)
+    for threshold, level, fix_within in URGENCY_LEVELS:
+        if score >= threshold:
+            break
+    return {
+        "score": score,
+        "level": level,
+        "fix_within": fix_within,
+        "reasons": [reason for _, reason in parts],
+    }
