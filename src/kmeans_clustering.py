@@ -14,6 +14,7 @@ import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler
+from src.utils import write_text_atomic
 
 FEATURE_COLUMNS = [
     "attack_complexity",
@@ -311,7 +312,7 @@ def generate_cluster_analysis_text(
 
     out_file = Path(output_path)
     out_file.parent.mkdir(parents=True, exist_ok=True)
-    out_file.write_text("\n".join(lines), encoding="utf-8")
+    write_text_atomic(out_file, "\n".join(lines))
     return out_file
 
 
@@ -331,9 +332,9 @@ def save_kmeans_artifacts(
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    metrics_df.to_csv(out_dir / "k_selection_metrics.csv", index=False)
-    profiles_df.to_csv(out_dir / "cluster_profiles.csv", index=False)
-    assignments.to_csv(out_dir / "cluster_assignments.csv", index=False)
+    write_text_atomic(out_dir / "k_selection_metrics.csv", metrics_df.to_csv(index=False))
+    write_text_atomic(out_dir / "cluster_profiles.csv", profiles_df.to_csv(index=False))
+    write_text_atomic(out_dir / "cluster_assignments.csv", assignments.to_csv(index=False))
 
     return out_dir
 
@@ -413,7 +414,7 @@ def run_kmeans(
 
     # 9. Save artifacts
     save_kmeans_artifacts(metrics_df, profiles_df, assignments, output_dir=out_dir)
-    assignments.to_csv(Path(output_path), index=False)
+    write_text_atomic(Path(output_path), assignments.to_csv(index=False))
 
     return assignments
 

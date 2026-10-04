@@ -21,6 +21,7 @@ import pandas as pd
 from src.astar_search import compare_search_algorithms, enumerate_attack_paths
 from src.csp_solver import build_csp_case_from_pipeline, compare_csp_strategies, load_constraint_config
 from src.graph_builder import build_graph
+from src.utils import write_text_atomic
 
 OUTPUT_DIR = Path("artifacts/evaluation")
 
@@ -78,9 +79,9 @@ def run_evaluation(graph=None, output_dir: Path = OUTPUT_DIR) -> Dict[str, pd.Da
             csp_rows.append({"case": case_name, "tasks": len(case.vulnerabilities), **row})
     csp_df = pd.DataFrame(csp_rows)
 
-    astar_df.to_csv(output_dir / "astar_comparison.csv", index=False)
-    paths_df.to_csv(output_dir / "attack_paths.csv", index=False)
-    csp_df.to_csv(output_dir / "csp_comparison.csv", index=False)
+    write_text_atomic(output_dir / "astar_comparison.csv", astar_df.to_csv(index=False))
+    write_text_atomic(output_dir / "attack_paths.csv", paths_df.to_csv(index=False))
+    write_text_atomic(output_dir / "csp_comparison.csv", csp_df.to_csv(index=False))
 
     report = [
         "# TraceWard Evaluation Report",
@@ -100,7 +101,7 @@ def run_evaluation(graph=None, output_dir: Path = OUTPUT_DIR) -> Dict[str, pd.Da
         "Timing (ms) varies by machine and is recorded in csp_comparison.csv.",
         "",
     ]
-    (output_dir / "evaluation_report.md").write_text("\n".join(report), encoding="utf-8")
+    write_text_atomic((output_dir / "evaluation_report.md"), "\n".join(report))
     return {"astar": astar_df, "paths": paths_df, "csp": csp_df}
 
 

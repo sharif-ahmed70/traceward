@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import pandas as pd
+from src.utils import write_text_atomic
 
 # Mappings for categorical features
 ATTACK_COMPLEXITY_MAP = {
@@ -162,7 +163,7 @@ def preprocess_vulnerabilities(
     output_dir = Path(output_path).parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    processed_df.to_csv(output_path, index=False, encoding="utf-8", lineterminator="\n")
+    write_text_atomic(output_path, processed_df.to_csv(index=False, lineterminator="\n"))
     return processed_df
 
 
